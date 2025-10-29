@@ -18,40 +18,46 @@ This final phase takes ClipForge from functional to polished. We'll add the feat
 ## User Stories
 
 ### Timeline Visuals
+
 - As a user, I see **thumbnail previews** on timeline clips (not just solid colors)
 - As a user, I see **waveform visualizations** on clips with audio
 - As a user, thumbnails update as I trim clips to show the actual content
-- As a user, I can toggle thumbnail/waveform display for performance *(stretch)*
+- As a user, I can toggle thumbnail/waveform display for performance _(stretch)_
 
 ### Proxies for Smooth Playback
+
 - As a user, large or high-res files (4K+) are automatically converted to **lightweight proxies** for preview
 - As a user, I see a progress indicator while proxies are being generated
 - As a user, playback is smooth even with 10+ clips on the timeline
 - As a user, exports still use the **original high-quality files** (proxies only for preview)
 
 ### Auto-Save & Safety
+
 - As a user, my project is **automatically saved** every 30 seconds while I work
 - As a user, I see a subtle "Saving..." indicator when auto-save happens
 - As a user, if the app crashes, I can **recover** my last auto-saved state on restart
 - As a user, I can **manually save** using Cmd/Ctrl+S
 
 ### Undo/Redo
+
 - As a user, I can **undo** my last action (Cmd/Ctrl+Z)
 - As a user, I can **redo** an undone action (Cmd/Ctrl+Shift+Z)
 - As a user, undo/redo works for: add/move/trim/split/delete clips, timeline changes
-- As a user, I see a subtle indication of what action was undone *(nice-to-have)*
+- As a user, I see a subtle indication of what action was undone _(nice-to-have)_
 
 ### Keyboard Shortcuts
+
 - As a user, I can use **Space** to play/pause
 - As a user, I can use **S** to split clip at playhead
 - As a user, I can use **Delete/Backspace** to delete selected clip
 - As a user, I can use **Cmd/Ctrl+Z** to undo and **Cmd/Ctrl+Shift+Z** to redo
 - As a user, I can use **+/-** to zoom timeline in/out
 - As a user, I can use **Arrow keys** to move playhead or select clips
-- As a user, I can use **J/K/L** for playback control (reverse/pause/forward) *(stretch)*
+- As a user, I can use **J/K/L** for playback control (reverse/pause/forward) _(stretch)_
 - As a user, I can see a **keyboard shortcuts help panel** (Cmd/Ctrl+?)
 
 ### Performance Optimizations
+
 - As a user, the timeline remains responsive with 30+ clips
 - As a user, dragging and trimming feels smooth (60fps)
 - As a user, the app doesn't consume excessive memory (<500MB with typical project)
@@ -59,6 +65,7 @@ This final phase takes ClipForge from functional to polished. We'll add the feat
 - As a user, the app starts quickly (<5 seconds)
 
 ### Additional Polish
+
 - As a user, I see **tooltips** on buttons and controls explaining what they do
 - As a user, I can **search/filter** my media library by filename
 - As a user, I can **rename** clips in the timeline
@@ -73,37 +80,47 @@ This final phase takes ClipForge from functional to polished. We'll add the feat
 ### Timeline Thumbnails
 
 **Generation:**
+
 - On clip add to timeline, generate 5-10 thumbnails across the clip duration
 - Use FFmpeg to extract frames at intervals: `ffmpeg -i video.mp4 -vf "fps=1/5" thumbnail-%03d.jpg`
 - Store thumbnails in `project.clipforge/thumbnails/<clipId>/`
 
 **Rendering:**
+
 - In `TimelineClip` component, display thumbnails as repeating background or CSS grid
 - Update visible thumbnails when clip is trimmed (show correct frames)
 
 ```typescript
-function generateClipThumbnails(mediaPath: string, clipId: string, count: number = 10): Promise<string[]> {
+function generateClipThumbnails(
+  mediaPath: string,
+  clipId: string,
+  count: number = 10
+): Promise<string[]> {
   const outputDir = path.join(projectDir, 'thumbnails', clipId);
   fs.mkdirSync(outputDir, { recursive: true });
-  
+
   const interval = duration / count;
   const thumbnailPaths: string[] = [];
-  
+
   for (let i = 0; i < count; i++) {
     const timestamp = i * interval;
     const outputPath = path.join(outputDir, `thumb-${i}.jpg`);
-    
+
     await execFFmpeg([
-      '-ss', timestamp.toString(),
-      '-i', mediaPath,
-      '-vframes', '1',
-      '-vf', 'scale=160:-1',
-      outputPath
+      '-ss',
+      timestamp.toString(),
+      '-i',
+      mediaPath,
+      '-vframes',
+      '1',
+      '-vf',
+      'scale=160:-1',
+      outputPath,
     ]);
-    
+
     thumbnailPaths.push(outputPath);
   }
-  
+
   return thumbnailPaths;
 }
 ```
@@ -111,6 +128,7 @@ function generateClipThumbnails(mediaPath: string, clipId: string, count: number
 ### Waveform Generation
 
 **Using Web Audio API:**
+
 ```typescript
 async function generateWaveform(audioPath: string): Promise<number[]> {
   const audioBuffer = await loadAudioBuffer(audioPath);
@@ -118,7 +136,7 @@ async function generateWaveform(audioPath: string): Promise<number[]> {
   const samples = 1000; // Number of waveform points
   const blockSize = Math.floor(channelData.length / samples);
   const waveform: number[] = [];
-  
+
   for (let i = 0; i < samples; i++) {
     const start = i * blockSize;
     let sum = 0;
@@ -127,22 +145,25 @@ async function generateWaveform(audioPath: string): Promise<number[]> {
     }
     waveform.push(sum / blockSize);
   }
-  
+
   return waveform;
 }
 ```
 
 **Rendering:**
+
 - Display waveform as SVG or Canvas overlay on timeline clip
 - Update waveform section shown when clip is trimmed
 
 ### Proxy Generation
 
 **When to Generate:**
+
 - Automatically for files >1080p or >500MB
 - Or on user request ("Generate Proxies" button)
 
 **Proxy Specs:**
+
 - Resolution: 720p (or half of source)
 - Codec: H.264, CRF 28 (lower quality, smaller file)
 - Same frame rate as source
@@ -156,6 +177,7 @@ ffmpeg -i source-4k.mp4 \
 ```
 
 **State Management:**
+
 ```typescript
 interface MediaFile {
   // ... existing
@@ -165,8 +187,8 @@ interface MediaFile {
 
 // Use proxy for preview if available, original for export
 function getPreviewPath(media: MediaFile): string {
-  return media.proxyStatus === 'ready' && media.proxyPath 
-    ? media.proxyPath 
+  return media.proxyStatus === 'ready' && media.proxyPath
+    ? media.proxyPath
     : media.path;
 }
 ```
@@ -174,6 +196,7 @@ function getPreviewPath(media: MediaFile): string {
 ### Auto-Save System
 
 **Implementation:**
+
 ```typescript
 const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
 
@@ -204,6 +227,7 @@ store.subscribe((state, prevState) => {
 ```
 
 **Crash Recovery:**
+
 - On app start, check for `project.clipforge/.autosave.json`
 - If found and newer than `project.json`, prompt: "Recover unsaved changes?"
 - If yes, load autosave; if no, delete autosave and load normal project
@@ -211,6 +235,7 @@ store.subscribe((state, prevState) => {
 ### Undo/Redo System
 
 **Command Pattern:**
+
 ```typescript
 interface Command {
   execute: () => void;
@@ -222,17 +247,17 @@ class History {
   private undoStack: Command[] = [];
   private redoStack: Command[] = [];
   private maxSize = 50;
-  
+
   execute(command: Command) {
     command.execute();
     this.undoStack.push(command);
     this.redoStack = []; // Clear redo stack on new action
-    
+
     if (this.undoStack.length > this.maxSize) {
       this.undoStack.shift();
     }
   }
-  
+
   undo() {
     const command = this.undoStack.pop();
     if (command) {
@@ -240,7 +265,7 @@ class History {
       this.redoStack.push(command);
     }
   }
-  
+
   redo() {
     const command = this.redoStack.pop();
     if (command) {
@@ -256,16 +281,16 @@ class AddClipCommand implements Command {
     private clip: Clip,
     private store: Store
   ) {}
-  
+
   execute() {
     this.store.clips.push(this.clip);
   }
-  
+
   undo() {
-    const index = this.store.clips.findIndex(c => c.id === this.clip.id);
+    const index = this.store.clips.findIndex((c) => c.id === this.clip.id);
     this.store.clips.splice(index, 1);
   }
-  
+
   description = 'Add Clip';
 }
 ```
@@ -273,55 +298,56 @@ class AddClipCommand implements Command {
 ### Keyboard Shortcuts
 
 **Global Listener:**
+
 ```typescript
 useEffect(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
     const isMac = navigator.platform.indexOf('Mac') === 0;
     const modifier = isMac ? e.metaKey : e.ctrlKey;
-    
+
     // Space: Play/Pause
     if (e.code === 'Space' && !isInputFocused()) {
       e.preventDefault();
       togglePlayback();
     }
-    
+
     // S: Split
     if (e.code === 'KeyS' && !modifier && !isInputFocused()) {
       e.preventDefault();
       splitAtPlayhead();
     }
-    
+
     // Delete/Backspace: Delete clip
     if ((e.code === 'Delete' || e.code === 'Backspace') && !isInputFocused()) {
       e.preventDefault();
       deleteSelectedClip();
     }
-    
+
     // Cmd/Ctrl+Z: Undo
     if (modifier && e.code === 'KeyZ' && !e.shiftKey) {
       e.preventDefault();
       undo();
     }
-    
+
     // Cmd/Ctrl+Shift+Z: Redo
     if (modifier && e.code === 'KeyZ' && e.shiftKey) {
       e.preventDefault();
       redo();
     }
-    
+
     // +/-: Zoom
     if (e.code === 'Equal' || e.code === 'Minus') {
       e.preventDefault();
       adjustZoom(e.code === 'Equal' ? 1.2 : 0.8);
     }
-    
+
     // Arrow keys: Move playhead or selection
     if (e.code.startsWith('Arrow')) {
       e.preventDefault();
       handleArrowKey(e.code);
     }
   };
-  
+
   window.addEventListener('keydown', handleKeyDown);
   return () => window.removeEventListener('keydown', handleKeyDown);
 }, []);
@@ -338,30 +364,36 @@ Create `KeyboardShortcutsDialog.tsx` that shows all available shortcuts in a mod
 ### Performance Optimizations
 
 **1. Timeline Virtualization:**
+
 - Only render clips visible in viewport
 - Use `react-window` or custom virtualization
 
 **2. Debounce/Throttle:**
+
 - Throttle drag events (every 16ms / 60fps)
 - Debounce auto-save (wait 2s after last change)
 - Debounce search/filter (300ms)
 
 **3. Web Workers:**
+
 - Move heavy computations to workers:
   - Thumbnail generation coordination
   - Waveform processing
   - Timeline calculations
 
 **4. Memoization:**
+
 - Use `React.memo` for components that re-render often
 - Use `useMemo` for expensive calculations
 - Use `useCallback` for stable function references
 
 **5. Lazy Loading:**
+
 - Load thumbnails on demand (not all at once)
 - Lazy load media metadata (paginate large libraries)
 
 **6. Memory Management:**
+
 - Clean up old thumbnails periodically
 - Revoke object URLs when no longer needed
 - Limit undo/redo stack size
@@ -397,6 +429,7 @@ Create `KeyboardShortcutsDialog.tsx` that shows all available shortcuts in a mod
    - Progress fill: `h-full bg-blue-500 transition-all duration-300`
 
 **Custom Tailwind v4.0 Configuration:**
+
 ```css
 @theme {
   --color-save-indicator: #6b7280;
@@ -414,6 +447,7 @@ Create `KeyboardShortcutsDialog.tsx` that shows all available shortcuts in a mod
 ## Acceptance Criteria
 
 ### Must Have
+
 - [ ] Timeline clips show thumbnail previews
 - [ ] Auto-save runs every 30 seconds
 - [ ] Crash recovery offers to restore last auto-save
@@ -425,6 +459,7 @@ Create `KeyboardShortcutsDialog.tsx` that shows all available shortcuts in a mod
 - [ ] App starts in <5 seconds
 
 ### Nice to Have
+
 - [ ] Waveform visualization on audio clips
 - [ ] Proxy generation for large files (auto or manual)
 - [ ] J/K/L playback shortcuts
@@ -441,11 +476,12 @@ Create `KeyboardShortcutsDialog.tsx` that shows all available shortcuts in a mod
 ## Dependencies
 
 ### npm Packages
+
 ```json
 {
   "dependencies": {
     "zustand": "^4.x", // State management
-    "uuid": "^9.x",    // ID generation
+    "uuid": "^9.x", // ID generation
     "electron-store": "^8.x", // Simple persistence (optional, or use fs directly)
     "@tailwindcss/vite": "^4.0.0", // Tailwind CSS v4.0 Vite plugin
     "tailwindcss": "^4.0.0" // CSS framework v4.0
@@ -485,13 +521,13 @@ Create `KeyboardShortcutsDialog.tsx` that shows all available shortcuts in a mod
    - Create KeyboardShortcutsDialog
    - Add "?" trigger to open dialog
 
-5. **Waveform Generation** (1 day) *(stretch)*
+5. **Waveform Generation** (1 day) _(stretch)_
    - Implement waveform generation with Web Audio API
    - Cache waveforms
    - Create WaveformOverlay component
    - Render on timeline clips
 
-6. **Proxy Generation** (1 day) *(stretch)*
+6. **Proxy Generation** (1 day) _(stretch)_
    - Detect large/high-res files
    - Implement proxy generation with FFmpeg
    - Update MediaFile with proxy status
@@ -542,9 +578,9 @@ Create `KeyboardShortcutsDialog.tsx` that shows all available shortcuts in a mod
 - [ ] Focus states are visible for keyboard navigation
 - [ ] App icon is high quality
 - [ ] About dialog with version info
-- [ ] Check for updates on launch *(optional)*
-- [ ] Analytics opt-in for crash reporting *(optional, privacy-conscious)*
-- [ ] User documentation / getting started guide *(README or in-app)*
+- [ ] Check for updates on launch _(optional)_
+- [ ] Analytics opt-in for crash reporting _(optional, privacy-conscious)_
+- [ ] User documentation / getting started guide _(README or in-app)_
 
 ---
 
@@ -553,8 +589,8 @@ Create `KeyboardShortcutsDialog.tsx` that shows all available shortcuts in a mod
 With Phase 5 complete, ClipForge is a fully-featured, polished desktop video editor that covers the core creator workflow: Record → Import → Arrange → Export. The app is fast, reliable, and intuitive, ready for real-world use by creators, educators, and professionals.
 
 **Next Steps:**
+
 - User testing and feedback gathering
 - Marketing materials (website, demo videos)
 - Distribution (app store submissions, website downloads)
 - Roadmap for v2 features (transitions, text overlays, audio mixing, color grading)
-

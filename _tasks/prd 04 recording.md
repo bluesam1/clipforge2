@@ -18,6 +18,7 @@ This phase transforms ClipForge from an editing tool into a complete content cre
 ## User Stories
 
 ### Recording Setup
+
 - As a user, I can click a **"Record"** button to open the recording panel
 - As a user, I can choose to record: Screen, Webcam, Screen + Webcam (PiP), or Audio Only
 - As a user, I can select which **screen/window** to record from a picker
@@ -27,18 +28,20 @@ This phase transforms ClipForge from an editing tool into a complete content cre
 - As a user, I can test my audio levels before recording
 
 ### Recording Process
+
 - As a user, I can click **"Start Recording"** to begin
 - As a user, I see a **recording indicator** (elapsed time, red dot)
-- As a user, I can **pause/resume** recording *(stretch)*
+- As a user, I can **pause/resume** recording _(stretch)_
 - As a user, I can click **"Stop Recording"** to finish
 - As a user, the recording is automatically saved and appears in my media library
 - As a user, I receive a notification that the recording is ready
 
 ### Screen + Webcam PiP
+
 - As a user, I can record my screen with webcam overlay in a single take
 - As a user, I can choose webcam **position** (corner: top-left, top-right, bottom-left, bottom-right)
 - As a user, I can choose webcam **size** (small, medium, large)
-- As a user, the PiP layout is baked into the recording for simplicity *(or: recorded as separate tracks - TBD)*
+- As a user, the PiP layout is baked into the recording for simplicity _(or: recorded as separate tracks - TBD)_
 
 ---
 
@@ -47,13 +50,14 @@ This phase transforms ClipForge from an editing tool into a complete content cre
 ### Electron APIs
 
 **Screen Recording:**
+
 ```typescript
 import { desktopCapturer } from 'electron';
 
 // Get available sources
 const sources = await desktopCapturer.getSources({
   types: ['screen', 'window'],
-  thumbnailSize: { width: 150, height: 150 }
+  thumbnailSize: { width: 150, height: 150 },
 });
 
 // Display picker to user
@@ -65,30 +69,32 @@ const stream = await navigator.mediaDevices.getUserMedia({
   video: {
     mandatory: {
       chromeMediaSource: 'desktop',
-      chromeMediaSourceId: sourceId
-    }
-  }
+      chromeMediaSourceId: sourceId,
+    },
+  },
 });
 ```
 
 **Webcam & Microphone:**
+
 ```typescript
 const webcamStream = await navigator.mediaDevices.getUserMedia({
   video: { deviceId: selectedCameraId },
-  audio: false
+  audio: false,
 });
 
 const micStream = await navigator.mediaDevices.getUserMedia({
   video: false,
-  audio: { deviceId: selectedMicrophoneId }
+  audio: { deviceId: selectedMicrophoneId },
 });
 ```
 
 **Device Enumeration:**
+
 ```typescript
 const devices = await navigator.mediaDevices.enumerateDevices();
-const cameras = devices.filter(d => d.kind === 'videoinput');
-const microphones = devices.filter(d => d.kind === 'audioinput');
+const cameras = devices.filter((d) => d.kind === 'videoinput');
+const microphones = devices.filter((d) => d.kind === 'audioinput');
 ```
 
 ### Recording with MediaRecorder
@@ -104,40 +110,44 @@ interface RecordingState {
 function startRecording(streams: MediaStream[]) {
   // Combine streams
   const combinedStream = new MediaStream();
-  streams.forEach(stream => {
-    stream.getTracks().forEach(track => combinedStream.addTrack(track));
+  streams.forEach((stream) => {
+    stream.getTracks().forEach((track) => combinedStream.addTrack(track));
   });
-  
+
   // Create MediaRecorder
   const recorder = new MediaRecorder(combinedStream, {
     mimeType: 'video/webm; codecs=vp9',
-    videoBitsPerSecond: 5000000 // 5 Mbps
+    videoBitsPerSecond: 5000000, // 5 Mbps
   });
-  
+
   const chunks: Blob[] = [];
-  
+
   recorder.ondataavailable = (e) => {
     if (e.data.size > 0) {
       chunks.push(e.data);
     }
   };
-  
+
   recorder.onstop = async () => {
     const blob = new Blob(chunks, { type: 'video/webm' });
     const arrayBuffer = await blob.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    
+
     // Save to project folder
-    const outputPath = path.join(projectDir, 'media', `recording-${Date.now()}.webm`);
+    const outputPath = path.join(
+      projectDir,
+      'media',
+      `recording-${Date.now()}.webm`
+    );
     fs.writeFileSync(outputPath, buffer);
-    
+
     // Optionally transcode to MP4 for consistency
     await transcodeToMP4(outputPath);
-    
+
     // Import to media library
     await importMedia(outputPath);
   };
-  
+
   recorder.start(1000); // Capture every 1s
   return recorder;
 }
@@ -146,6 +156,7 @@ function startRecording(streams: MediaStream[]) {
 ### Screen + Webcam Compositing
 
 **Option A: Bake PiP during recording (Simpler)**
+
 - Use Canvas to composite screen + webcam in real-time
 - Record the composed canvas stream
 
@@ -164,10 +175,10 @@ webcamVideo.srcObject = webcamStream;
 function drawFrame() {
   // Draw screen
   ctx.drawImage(screenVideo, 0, 0, 1920, 1080);
-  
+
   // Draw webcam PiP (bottom-right, 320x180)
   ctx.drawImage(webcamVideo, 1920 - 320 - 20, 1080 - 180 - 20, 320, 180);
-  
+
   requestAnimationFrame(drawFrame);
 }
 
@@ -176,11 +187,12 @@ const recorder = new MediaRecorder(canvasStream);
 ```
 
 **Option B: Separate tracks (More flexible)**
+
 - Record screen and webcam as separate files
 - Automatically place webcam on Track 2 (overlay) in timeline
 - User can reposition/resize in timeline
 
-*Recommendation:* **Option B** for flexibility, but add "Quick PiP Recording" preset that auto-positions overlay.
+_Recommendation:_ **Option B** for flexibility, but add "Quick PiP Recording" preset that auto-positions overlay.
 
 ### State Management (extend Zustand)
 
@@ -201,7 +213,7 @@ interface AppState {
   availableSources: DesktopCapturerSource[];
   availableCameras: MediaDeviceInfo[];
   availableMicrophones: MediaDeviceInfo[];
-  
+
   // Actions
   openRecordingPanel: () => void;
   updateRecordingSettings: (settings: Partial<RecordingSettings>) => void;
@@ -244,6 +256,7 @@ interface AppState {
    - For PiP mode: `relative` with webcam overlay positioned absolutely
 
 **Custom Tailwind v4.0 Configuration:**
+
 ```css
 @theme {
   --color-recording-active: #dc2626;
@@ -259,6 +272,7 @@ interface AppState {
 ## Acceptance Criteria
 
 ### Must Have
+
 - [ ] User can select a screen/window from picker and start recording
 - [ ] User can select a webcam and start recording
 - [ ] User can select a microphone for audio
@@ -270,6 +284,7 @@ interface AppState {
 - [ ] Recordings are playable (WebM or MP4)
 
 ### Nice to Have
+
 - [ ] Screen + Webcam PiP recording in one take
 - [ ] Pause/resume recording
 - [ ] Countdown before recording starts (3, 2, 1)
@@ -282,11 +297,12 @@ interface AppState {
 ## Dependencies
 
 ### npm Packages
+
 ```json
 {
   "dependencies": {
     "zustand": "^4.x", // State management
-    "uuid": "^9.x",    // ID generation
+    "uuid": "^9.x", // ID generation
     "electron-store": "^8.x", // Simple persistence (optional, or use fs directly)
     "@tailwindcss/vite": "^4.0.0", // Tailwind CSS v4.0 Vite plugin
     "tailwindcss": "^4.0.0" // CSS framework v4.0
@@ -323,7 +339,7 @@ interface AppState {
    - Implement audio recording
    - Save recordings to files
 
-5. **Screen + Webcam PiP** (1 day) *(stretch)*
+5. **Screen + Webcam PiP** (1 day) _(stretch)_
    - Canvas compositing
    - PiP positioning/sizing options
    - Record composed stream
@@ -355,10 +371,10 @@ interface AppState {
 ## Next Phase Preview
 
 **Phase 5: Polish & Performance** will add final touches:
+
 - Thumbnail generation for timeline clips
 - Proxy generation for smooth playback
 - Auto-save project state
 - Keyboard shortcuts
 - Performance optimizations
 - Bug fixes and UX refinements
-

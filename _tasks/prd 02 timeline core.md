@@ -18,6 +18,7 @@ This phase introduces the heart of ClipForge: a timeline where users can arrange
 ## User Stories
 
 ### Timeline Layout & Navigation
+
 - As a user, I see a **timeline panel** below the preview area with at least **2 tracks** (main video + overlay)
 - As a user, I see a **visible playhead** (vertical line) that indicates the current time position
 - As a user, I see a **timecode ruler** above the tracks showing seconds/minutes
@@ -26,6 +27,7 @@ This phase introduces the heart of ClipForge: a timeline where users can arrange
 - As a user, I can **click anywhere** on the timeline to move the playhead to that position
 
 ### Adding Clips to Timeline
+
 - As a user, I can **drag a media item** from the library and **drop it onto a track**
 - As a user, the clip appears as a **visual block** on the track with a thumbnail preview
 - As a user, I can see the **clip name** and **duration** on the timeline block
@@ -33,6 +35,7 @@ This phase introduces the heart of ClipForge: a timeline where users can arrange
 - As a user, if I drop a clip where another exists, it either **inserts** (pushing others right) or **replaces** based on modifier key
 
 ### Arranging & Selecting Clips
+
 - As a user, I can **click to select** a clip on the timeline (visible selection state)
 - As a user, I can **drag a selected clip** left/right to reposition it
 - As a user, clips **snap to other clip edges** and the playhead when dragging (with visual snap indicators)
@@ -40,6 +43,7 @@ This phase introduces the heart of ClipForge: a timeline where users can arrange
 - As a user, I cannot drag clips to overlap on the same track (they push adjacent clips or prevent the move)
 
 ### Trimming Clips
+
 - As a user, I can **hover over clip edges** to see resize handles (cursor changes to ⟷)
 - As a user, I can **drag the left edge** to adjust the in-point (trim start)
 - As a user, I can **drag the right edge** to adjust the out-point (trim end)
@@ -48,16 +52,19 @@ This phase introduces the heart of ClipForge: a timeline where users can arrange
 - As a user, I cannot trim beyond the source media's duration
 
 ### Splitting Clips
+
 - As a user, I can **position the playhead** over a clip and press **Split** (or use keyboard shortcut)
 - As a user, the clip is **cut into two clips** at the playhead, both remaining on the timeline
 - As a user, each resulting clip can be moved, trimmed, or deleted independently
 
 ### Deleting Clips
+
 - As a user, I can **select a clip** and press **Delete** button (or keyboard shortcut) to remove it
 - As a user, clips to the right of the deleted clip **optionally shift left** to close the gap (ripple delete) or stay in place (lift delete)
-  - *Recommendation:* Default to **lift delete** (gap remains) for simplicity; add ripple as stretch goal
+  - _Recommendation:_ Default to **lift delete** (gap remains) for simplicity; add ripple as stretch goal
 
 ### Timeline Playback Coordination
+
 - As a user, the **preview player** shows the frame at the current playhead position
 - As a user, when I **click Play**, the playhead moves forward and the preview updates in real-time
 - As a user, playback **stops at the end** of the last clip
@@ -70,24 +77,25 @@ This phase introduces the heart of ClipForge: a timeline where users can arrange
 ### Architecture Components
 
 #### Timeline State (extend Zustand store)
+
 ```typescript
 interface Track {
   id: string;
   kind: 'video' | 'overlay' | 'audio';
   name: string;
   clips: string[]; // Clip IDs in order
-  height: number;   // Pixels
-  locked: boolean;  // Future: prevent edits
+  height: number; // Pixels
+  locked: boolean; // Future: prevent edits
 }
 
 interface Clip {
   id: string;
-  mediaId: string;    // Reference to MediaFile
+  mediaId: string; // Reference to MediaFile
   trackId: string;
-  start: number;      // Timeline position (seconds)
-  end: number;        // Timeline position (seconds)
-  offset: number;     // Trim offset into source media (seconds)
-  duration: number;   // end - start
+  start: number; // Timeline position (seconds)
+  end: number; // Timeline position (seconds)
+  offset: number; // Trim offset into source media (seconds)
+  duration: number; // end - start
   transforms: {
     scale: number;
     x: number;
@@ -97,9 +105,9 @@ interface Clip {
 }
 
 interface Timeline {
-  zoom: number;       // Pixels per second
-  playhead: number;   // Current time (seconds)
-  snap: boolean;      // Snap enabled
+  zoom: number; // Pixels per second
+  playhead: number; // Current time (seconds)
+  snap: boolean; // Snap enabled
   snapThreshold: number; // Pixels
   totalDuration: number; // Computed from rightmost clip
 }
@@ -110,7 +118,7 @@ interface AppState {
   clips: Clip[];
   timeline: Timeline;
   selectedClipId: string | null;
-  
+
   // Actions
   addClip: (mediaId: string, trackId: string, position: number) => void;
   moveClip: (clipId: string, newStart: number) => void;
@@ -127,18 +135,21 @@ interface AppState {
 #### Timeline Rendering Engine
 
 **Option A: Canvas-based (Recommended for performance)**
+
 - Use HTML5 Canvas for rendering tracks, clips, ruler
 - Benefits: Smooth with many clips, full control over rendering
 - Drawbacks: More complex hit-testing, accessibility needs care
 
 **Option B: DOM-based**
+
 - Use CSS Grid or absolute positioning for clips
 - Benefits: Easier hit-testing, accessible by default
 - Drawbacks: Can stutter with 50+ clips
 
-*Recommendation:* Start with **DOM-based** for speed of development; switch to Canvas if performance issues arise.
+_Recommendation:_ Start with **DOM-based** for speed of development; switch to Canvas if performance issues arise.
 
 **Components:**
+
 1. `Timeline.tsx` - Container with tracks, ruler, playhead
 2. `TimelineRuler.tsx` - Timecode markers (0s, 5s, 10s, etc.)
 3. `TimelineTrack.tsx` - Single track row
@@ -151,17 +162,16 @@ interface AppState {
 **Challenge:** Show the correct frame for the playhead position when multiple clips exist.
 
 **Solution for this phase:**
+
 - On playhead change, determine which clip(s) are "active" at that time
 - For single-track: load that clip's video and seek to `offset + (playhead - clip.start)`
 - For multi-track (Track 1 + Track 2 overlay): show Track 1 as base; composite Track 2 on top (if using Canvas/WebGL)
-  - *Simplified approach:* Show only Track 1 clip in preview for this phase; defer multi-track composition to Phase 3 (Export) where FFmpeg handles it
+  - _Simplified approach:_ Show only Track 1 clip in preview for this phase; defer multi-track composition to Phase 3 (Export) where FFmpeg handles it
 
 ```typescript
 function getClipAtPlayhead(playhead: number, trackId: string): Clip | null {
-  return clips.find(c => 
-    c.trackId === trackId && 
-    c.start <= playhead && 
-    c.end > playhead
+  return clips.find(
+    (c) => c.trackId === trackId && c.start <= playhead && c.end > playhead
   );
 }
 
@@ -181,6 +191,7 @@ function updatePreview(playhead: number) {
 ### Drag & Drop Interaction
 
 **From Media Library to Timeline:**
+
 1. `MediaItem` has `draggable={true}` with `onDragStart` setting `dataTransfer.setData('mediaId', id)`
 2. `TimelineTrack` has `onDrop` event that:
    - Gets `mediaId` from dataTransfer
@@ -189,6 +200,7 @@ function updatePreview(playhead: number) {
    - Snaps position to nearest edge if snap is enabled
 
 **Clip Repositioning:**
+
 1. `TimelineClip` has `onMouseDown` (not draggable attribute, for finer control)
 2. Attach `mousemove` listener to calculate delta
 3. Update clip.start based on delta and zoom
@@ -197,62 +209,66 @@ function updatePreview(playhead: number) {
 6. On `mouseup`, finalize position
 
 **Trim Handles:**
+
 1. `TimelineClip` has left/right edge divs (10px wide) with distinct cursor
 2. On `mousedown` on handle, enter "trim mode"
 3. `mousemove` updates clip.start (left handle) or clip.end (right handle)
 4. Constrain: `clip.start >= track.startTime`, `clip.end <= clip.start + sourceMediaDuration - clip.offset`
 
 ### Snapping Logic
+
 ```typescript
 function snapPosition(
-  position: number, 
+  position: number,
   clipId: string, // ID of clip being moved (to ignore self)
   snapThreshold: number = 10 // pixels
 ): number {
   if (!timeline.snap) return position;
-  
+
   const pixelsPerSecond = timeline.zoom;
   const thresholdSeconds = snapThreshold / pixelsPerSecond;
-  
+
   // Snap targets: playhead, other clip edges
   const targets = [timeline.playhead];
-  clips.forEach(c => {
+  clips.forEach((c) => {
     if (c.id !== clipId) {
       targets.push(c.start, c.end);
     }
   });
-  
+
   for (const target of targets) {
     if (Math.abs(position - target) < thresholdSeconds) {
       return target; // Snap to target
     }
   }
-  
+
   return position; // No snap
 }
 ```
 
 ### Timeline Zoom & Pan
+
 - **Zoom:** Multiply `timeline.zoom` (pixels per second) on slider change
   - Range: 10px/s (zoomed out, see whole timeline) to 100px/s (zoomed in, see frames)
   - On zoom, keep playhead centered if possible
-  
 - **Pan:** Horizontal scrollbar on timeline container
   - Container width = `timeline.totalDuration * timeline.zoom`
 
 ### Keyboard Shortcuts (stretch goal)
+
 - `Space`: Play/Pause
 - `S`: Split clip at playhead
 - `Delete`/`Backspace`: Delete selected clip
 - `+`/`-`: Zoom in/out
 - `Arrow Left/Right`: Move playhead by 1 frame
-- `Cmd/Ctrl + Z`: Undo *(requires undo system - defer or basic implementation)*
+- `Cmd/Ctrl + Z`: Undo _(requires undo system - defer or basic implementation)_
 
 ---
 
 ## Data Flow
 
 ### Adding Clip to Timeline
+
 1. User drags media item → drops on Track 1 at 5.0s
 2. `TimelineTrack.onDrop`:
    - Calculate position: `(mouseX - trackOffsetX) / zoom + scrollLeft = 5.0`
@@ -263,6 +279,7 @@ function snapPosition(
 4. UI re-renders → `TimelineClip` component appears
 
 ### Splitting Clip
+
 1. User positions playhead at 10.0s over clipA (start: 5.0, end: 15.0)
 2. User clicks "Split" button
 3. `splitClip('clipA', 10.0)`:
@@ -273,6 +290,7 @@ function snapPosition(
 4. UI re-renders → two clips visible
 
 ### Trimming Clip
+
 1. User hovers over right edge of clipA → cursor changes
 2. User drags left by 2 seconds
 3. `onMouseMove`:
@@ -282,6 +300,7 @@ function snapPosition(
 4. UI re-renders → clipA shorter
 
 ### Playhead & Preview Update
+
 1. User drags playhead to 12.0s
 2. `setPlayhead(12.0)` → state.timeline.playhead = 12.0
 3. Effect hook in `PreviewPlayer` watches playhead:
@@ -297,6 +316,7 @@ function snapPosition(
 ## UI/UX Details
 
 ### Layout (updated)
+
 ```
 ┌──────────────────────────────────────────────────────────┐
 │ ClipForge                                        [_][□][X] │
@@ -324,16 +344,19 @@ function snapPosition(
 ### Visual Design (Tailwind CSS v4.0)
 
 **Timeline Ruler:**
+
 - Major ticks every 5 seconds (labeled): 0s, 5s, 10s...
 - Minor ticks every 1 second (unlabeled)
 - Background: `bg-gray-100` (light gray)
 
 **Tracks:**
+
 - Height: `h-20` (80px each)
 - Background: alternating `bg-gray-50` and `bg-gray-100`
 - Separator lines between tracks: `border-b border-gray-300`
 
 **Clips:**
+
 - Background: gradient with thumbnail preview repeated/cropped
 - Border: `border-2 border-gray-600` (selected: `border-3 border-blue-600`)
 - Border-radius: `rounded`
@@ -341,21 +364,25 @@ function snapPosition(
 - Trim handles: `w-2` (8px wide) vertical bars on edges (hover: `bg-blue-500`)
 
 **Playhead:**
+
 - Vertical line: `w-0.5 bg-red-500` (2px solid red)
 - Top handle: draggable circle/triangle `w-4 h-4` (16px)
 - Extends full height of timeline
 
 **Snap Indicators:**
+
 - When snapping, show dashed guide line `border-dashed border-blue-600` at snap target
 - Flash briefly on snap with `animate-pulse`
 
 **Interaction States:**
+
 - Hover over clip: `shadow-md border-blue-400`
 - Dragging clip: `opacity-70 cursor-grabbing`
 - Trimming: `cursor-col-resize` or `cursor-ew-resize`
 - Disabled drag (overlap prevented): `cursor-not-allowed`
 
 **Custom Tailwind v4.0 Configuration:**
+
 ```css
 @theme {
   --color-timeline-bg: #f8f9fa;
@@ -368,6 +395,7 @@ function snapPosition(
 ```
 
 ### Accessibility
+
 - Timeline clips have `role="button"` and `aria-label="Clip A, 5 seconds, from 10s to 15s"`
 - Playhead is keyboard-focusable and arrow keys move it
 - Toolbar buttons have clear labels and keyboard access
@@ -377,6 +405,7 @@ function snapPosition(
 ## Acceptance Criteria
 
 ### Must Have
+
 - [ ] User can drag a media item from library onto Track 1, and it appears as a clip
 - [ ] User can drag a clip left/right to reposition it
 - [ ] User can trim a clip by dragging its left or right edge
@@ -393,6 +422,7 @@ function snapPosition(
 - [ ] Clips cannot overlap on the same track
 
 ### Nice to Have
+
 - [ ] Horizontal scrolling works smoothly when zoomed in
 - [ ] Keyboard shortcuts (Space, S, Delete, +/-, arrows)
 - [ ] Ripple delete (closing gaps)
@@ -406,6 +436,7 @@ function snapPosition(
 ## Testing Plan
 
 ### Manual Testing
+
 1. **Adding Clips:**
    - Drag media to Track 1 → verify appears at correct position
    - Drag media to Track 2 → verify appears on overlay track
@@ -448,6 +479,7 @@ function snapPosition(
    - Snap indicator appears briefly
 
 ### Edge Cases
+
 - Empty timeline (no clips)
 - Single clip on timeline
 - 20+ clips on timeline (performance)
@@ -541,11 +573,12 @@ function snapPosition(
 ## Dependencies
 
 ### npm Packages
+
 ```json
 {
   "dependencies": {
     "zustand": "^4.x", // State management
-    "uuid": "^9.x",    // ID generation
+    "uuid": "^9.x", // ID generation
     "electron-store": "^8.x", // Simple persistence (optional, or use fs directly)
     "@tailwindcss/vite": "^4.0.0", // Tailwind CSS v4.0 Vite plugin
     "tailwindcss": "^4.0.0" // CSS framework v4.0
@@ -561,13 +594,13 @@ function snapPosition(
 ## Open Questions
 
 - [ ] Should we support "magnetic timeline" where clips auto-attach to each other?
-  - *Recommendation:* Yes, as default behavior (no gaps unless intentional)
+  - _Recommendation:_ Yes, as default behavior (no gaps unless intentional)
 - [ ] How do we handle very short clips (<1s) visually?
-  - *Recommendation:* Minimum width of 40px regardless of zoom; show ellipsis for name
+  - _Recommendation:_ Minimum width of 40px regardless of zoom; show ellipsis for name
 - [ ] Should trimming update the preview in real-time or only on release?
-  - *Recommendation:* Real-time for better feedback, but may require debouncing
+  - _Recommendation:_ Real-time for better feedback, but may require debouncing
 - [ ] Do we allow negative timeline positions?
-  - *Recommendation:* No, timeline starts at 0s
+  - _Recommendation:_ No, timeline starts at 0s
 
 ---
 
@@ -583,8 +616,8 @@ function snapPosition(
 ## Next Phase Preview
 
 **Phase 3: Export Early** will build upon this timeline by:
+
 - Implementing FFmpeg-based export that stitches together all timeline clips
 - Handling trims, splits, and gaps in the export process
 - Adding resolution options and progress UI
 - Validating the timeline composition produces correct output
-

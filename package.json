@@ -1,10 +1,10 @@
 {
   "name": "clipforge",
   "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "description": "A local-only desktop video editor built with Electron",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "ClipForge Team",
+  "homepage": "https://clipforge.app",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
@@ -23,7 +23,12 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "electron-updater": "^6.3.9"
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@ffprobe-installer/ffprobe": "^2.1.2",
+    "@tailwindcss/vite": "^4.1.16",
+    "electron-updater": "^6.3.9",
+    "tailwindcss": "^4.1.16",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
