@@ -1,10 +1,30 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import MediaLibrary from './MediaLibrary';
 import PreviewPlayer from './PreviewPlayer';
 import { Timeline } from './Timeline';
 import ToastContainer from './Toast';
+import { ExportDialog } from './ExportDialog';
+import { ExportProgress } from './ExportProgress';
+import { ExportComplete } from './ExportComplete';
+import { useExportStore } from '../stores/exportStore';
 
 const AppShell: React.FC = () => {
+  const { openExportDialog } = useExportStore();
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl/Cmd + E to open export dialog
+      if ((event.ctrlKey || event.metaKey) && event.key === 'e') {
+        event.preventDefault();
+        openExportDialog();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [openExportDialog]);
+
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-100 overflow-hidden">
       {/* Top Panel - Preview Player */}
@@ -38,6 +58,15 @@ const AppShell: React.FC = () => {
 
       {/* Toast Container */}
       <ToastContainer />
+      
+      {/* Export Dialog */}
+      <ExportDialog />
+      
+      {/* Export Progress */}
+      <ExportProgress />
+      
+      {/* Export Complete */}
+      <ExportComplete />
     </div>
   );
 };

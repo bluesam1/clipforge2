@@ -19,7 +19,9 @@ export const Timeline: React.FC = () => {
   };
 
   const handleFitToContent = () => {
-    const availableWidth = 800; // Minimum container width
+    // Calculate actual available width for the timeline content area
+    // Account for track labels (24px) and some padding
+    const availableWidth = Math.max(800, window.innerWidth - 200); // Subtract space for side panels
     const optimalZoom = calculateFitZoom(clips, availableWidth);
     setZoom(optimalZoom);
   };

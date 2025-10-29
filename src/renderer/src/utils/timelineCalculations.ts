@@ -89,12 +89,12 @@ export function calculateTotalDuration(clips: Clip[]): number {
  */
 export function calculateFitZoom(clips: Clip[], availableWidth: number): number {
   const totalDuration = calculateTotalDuration(clips);
-  if (totalDuration === 0) return 50; // Default zoom percentage
+  if (totalDuration === 0) return 50; // Default pixels per second
   
   const requiredPixelsPerSecond = availableWidth / totalDuration;
-  const zoomPercentage = pixelsPerSecondToZoomPercentage(requiredPixelsPerSecond);
   
-  return Math.max(1, Math.min(100, zoomPercentage));
+  // Return the pixels per second directly, not a percentage
+  return Math.max(1, Math.min(1000, requiredPixelsPerSecond));
 }
 
 /**

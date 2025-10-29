@@ -6,6 +6,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
 import { extractMetadata, generateThumbnail, validateVideoFile, generateFileHash } from './utils/ffmpeg';
 import { MediaFile } from '../shared/types/media';
+import { setupExportHandlers } from './export';
 
 // Let's try a simpler approach - just allow file:// URLs
 
@@ -77,6 +78,9 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'));
+
+  // Setup export handlers
+  setupExportHandlers();
 
   // Media import handler
   ipcMain.handle('media:import', async (_event, filePaths: string[]): Promise<MediaFile[]> => {
@@ -178,6 +182,35 @@ app.whenReady().then(() => {
     });
 
     return result.canceled ? null : result.filePaths;
+  });
+
+  // File save dialog handler
+  ipcMain.handle('file:saveDialog', async (event, options: any): Promise<string | null> => {
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (!window) return null;
+    
+    const result = await dialog.showSaveDialog(window, {
+      title: options.title || 'Save Video As',
+      defaultPath: options.defaultPath || app.getPath('videos'),
+      buttonLabel: options.buttonLabel || 'Save',
+      filters: options.filters || [
+        { name: 'MP4 Video', extensions: ['mp4'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+      properties: ['createDirectory'],
+    });
+
+    return result.canceled ? null : result.filePath || null;
+  });
+
+  // Get videos directory path handler
+  ipcMain.handle('file:getVideosPath', async (): Promise<string> => {
+    return app.getPath('videos');
+  });
+
+  // Show item in folder handler
+  ipcMain.handle('file:showItemInFolder', async (_event, filePath: string): Promise<void> => {
+    shell.showItemInFolder(filePath);
   });
 
   // Project save handler
