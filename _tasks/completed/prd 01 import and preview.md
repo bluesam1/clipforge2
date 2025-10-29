@@ -17,12 +17,14 @@ This phase lays the foundation for ClipForge by implementing the essential media
 ## User Stories
 
 ### Import
+
 - As a user, I can **drag-and-drop** MP4, MOV, or WebM files into the app window to import them
 - As a user, I can click an **"Import Media"** button to open a file picker and select video files
 - As a user, I see a **loading indicator** while files are being processed
 - As a user, I receive **clear error messages** if a file cannot be imported (unsupported format, corrupted, etc.)
 
 ### Media Library Panel
+
 - As a user, I see all imported media in a **left-side panel** with generous spacing
 - As a user, I can see a **thumbnail preview** for each video file
 - As a user, I can see **metadata** for each file: filename, duration (MM:SS), resolution (WxH), and file size (MB)
@@ -30,6 +32,7 @@ This phase lays the foundation for ClipForge by implementing the essential media
 - As a user, I can **remove** a media item from the library (with confirmation prompt)
 
 ### Preview Player
+
 - As a user, I can **double-click** a media item to load it in the **center preview player**
 - As a user, I can **play/pause** the video using a prominent play/pause button
 - As a user, I can **scrub** through the video using a seek bar that shows current time and total duration
@@ -44,6 +47,7 @@ This phase lays the foundation for ClipForge by implementing the essential media
 ### Architecture Components
 
 #### Electron Main Process
+
 - Set up secure IPC handlers for:
   - `media:import` - Accepts file paths, validates formats, extracts metadata
   - `media:remove` - Removes media reference (optionally deletes file from project folder)
@@ -51,7 +55,9 @@ This phase lays the foundation for ClipForge by implementing the essential media
   - `file:openDialog` - Opens native file picker
 
 #### Preload Bridge
+
 Create typed IPC bridge in `src/preload/index.ts`:
+
 ```typescript
 interface MediaFile {
   id: string;
@@ -81,14 +87,16 @@ interface IClipForgeAPI {
 ```
 
 #### Renderer (React)
+
 **State Management** (Zustand recommended for simplicity):
+
 ```typescript
 interface AppState {
   media: MediaFile[];
   selectedMediaId: string | null;
   currentPreview: MediaFile | null;
   isImporting: boolean;
-  
+
   // Actions
   importMedia: (files: File[] | string[]) => Promise<void>;
   selectMedia: (id: string) => void;
@@ -98,6 +106,7 @@ interface AppState {
 ```
 
 **Components to Build:**
+
 1. `MediaLibrary.tsx` - Left panel container
    - `MediaItem.tsx` - Individual media card with thumbnail and metadata
    - `ImportButton.tsx` - Trigger file picker
@@ -111,6 +120,7 @@ interface AppState {
 3. `AppShell.tsx` - Main layout component (flexbox/CSS Grid)
 
 **Styling (Tailwind CSS v4.0):**
+
 - Use **Tailwind CSS v4.0** for all styling and component design
 - Follow style guide: generous spacing (16-24px gaps), neutral palette (grays/whites), restrained blue accent
 - Media items: 160px thumbnails with 8px padding, subtle shadow on hover
@@ -123,24 +133,30 @@ interface AppState {
 ### Media Processing (FFmpeg)
 
 **Metadata Extraction:**
+
 ```bash
 ffprobe -v quiet -print_format json -show_format -show_streams "input.mp4"
 ```
+
 Parse JSON response for: duration, width, height, fps, codec info
 
 **Thumbnail Generation:**
+
 ```bash
 ffmpeg -i "input.mp4" -ss 00:00:01 -vframes 1 -vf "scale=320:-1" "thumbnail.jpg"
 ```
+
 Store thumbnails in `project.clipforge/thumbnails/`
 
 **File Validation:**
+
 - Accept: MP4 (H.264/H.265), MOV (H.264), WebM (VP8/VP9)
 - Reject gracefully with clear error: "Unsupported format. Please use MP4, MOV, or WebM files."
 
 ### Project Structure
 
 Set up initial project folder structure:
+
 ```
 project.clipforge/
   project.json          # Project metadata and state
@@ -151,6 +167,7 @@ project.clipforge/
 ```
 
 **project.json** (initial schema):
+
 ```json
 {
   "id": "uuid-v4",
@@ -169,6 +186,7 @@ project.clipforge/
 ## Data Flow
 
 ### Import Flow
+
 1. User drags files → `DropZone` detects `drop` event
 2. Extract file paths → Call `window.clipforge.media.import(paths)`
 3. Main process:
@@ -181,6 +199,7 @@ project.clipforge/
 4. Renderer updates store → Media appears in library
 
 ### Preview Flow
+
 1. User double-clicks media item → `loadPreview(id)` action
 2. Update state: `currentPreview = media.find(m => m.id === id)`
 3. `VideoPlayer` component receives new `src` prop (local file path)
@@ -192,6 +211,7 @@ project.clipforge/
 ## UI/UX Details
 
 ### Layout
+
 ```
 ┌─────────────────────────────────────────────────────┐
 │ ClipForge                                    [_][□][X] │
@@ -216,6 +236,7 @@ project.clipforge/
 ```
 
 ### Interaction States
+
 - **Hover:** Media items show subtle shadow + 2px border (accent blue)
 - **Selected:** 3px border (accent blue), background tint
 - **Loading:** Spinner overlay on media item
@@ -223,6 +244,7 @@ project.clipforge/
 - **Empty state:** "Drag & drop videos here or click Import" with large icon
 
 ### Keyboard Support (stretch)
+
 - `Space`: Play/pause preview
 - `Delete`: Remove selected media (with confirmation)
 - `Arrow keys`: Scrub video (left/right) or select media (up/down)
@@ -232,6 +254,7 @@ project.clipforge/
 ## Acceptance Criteria
 
 ### Must Have
+
 - [ ] User can drag-and-drop a single MP4 file into the app
 - [ ] File appears in media library with thumbnail, filename, duration, resolution, file size
 - [ ] User can click "Import" button to open file picker and select multiple files
@@ -244,6 +267,7 @@ project.clipforge/
 - [ ] App remembers media library between sessions (persisted to project.json)
 
 ### Nice to Have
+
 - [ ] Volume control and mute button
 - [ ] Playback speed control (0.5x, 1x, 2x)
 - [ ] Media items sortable by name, date, duration
@@ -255,6 +279,7 @@ project.clipforge/
 ## Testing Plan
 
 ### Manual Testing
+
 1. **Import Flow:**
    - Drag single file → verify appears in library
    - Import button with multiple files → verify all appear
@@ -278,6 +303,7 @@ project.clipforge/
    - Verify project.json contains correct data
 
 ### Edge Cases
+
 - Empty library state
 - Corrupted video file
 - File deleted from disk but still in library
@@ -299,11 +325,12 @@ project.clipforge/
 ## Dependencies
 
 ### npm Packages
+
 ```json
 {
   "dependencies": {
     "zustand": "^4.x", // State management
-    "uuid": "^9.x",    // ID generation
+    "uuid": "^9.x", // ID generation
     "electron-store": "^8.x", // Simple persistence (optional, or use fs directly)
     "@tailwindcss/vite": "^4.0.0", // Tailwind CSS v4.0 Vite plugin
     "tailwindcss": "^4.0.0" // CSS framework v4.0
@@ -315,6 +342,7 @@ project.clipforge/
 ```
 
 ### External Binaries
+
 - **FFmpeg** (static build bundled with app)
 - **FFprobe** (included with FFmpeg)
 
@@ -368,11 +396,11 @@ Download from: https://ffmpeg.org/download.html or use `ffmpeg-static` npm packa
 ## Open Questions
 
 - [ ] Should imported files be **copied** into project folder or just **referenced** by path?
-  - *Recommendation:* Reference by path for MVP, add "consolidate media" feature later
+  - _Recommendation:_ Reference by path for MVP, add "consolidate media" feature later
 - [ ] Should we support audio-only files in this phase?
-  - *Recommendation:* No, defer to later phase
+  - _Recommendation:_ No, defer to later phase
 - [ ] What happens if user imports same file twice?
-  - *Recommendation:* Check hash, show "already imported" message
+  - _Recommendation:_ Check hash, show "already imported" message
 
 ---
 
@@ -388,8 +416,8 @@ Download from: https://ffmpeg.org/download.html or use `ffmpeg-static` npm packa
 ## Next Phase Preview
 
 **Phase 2: Timeline Core** will build upon this foundation by:
+
 - Adding a timeline panel below preview
 - Enabling drag-and-drop from media library to timeline
 - Implementing clip positioning, trimming, splitting
 - Starting multi-clip composition (preview will still play single clip at playhead position)
-

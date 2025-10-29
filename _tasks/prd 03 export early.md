@@ -18,16 +18,18 @@ This phase transforms ClipForge from a preview tool into a functional video edit
 ## User Stories
 
 ### Export Configuration
+
 - As a user, I can click an **"Export"** button prominently placed in the UI
 - As a user, I see an **export dialog** with sensible defaults pre-filled:
   - Output filename: `<project-name>-<YYYYMMDD>-<HHmm>.mp4`
   - Resolution: Match source (default), 1080p, or 720p
   - Destination folder: Last used or system Videos folder
 - As a user, I can **change the filename** and **choose a different folder**
-- As a user, I can see an **estimated file size** based on duration and settings *(nice-to-have)*
+- As a user, I can see an **estimated file size** based on duration and settings _(nice-to-have)_
 - As a user, I can **cancel** the export before starting
 
 ### Export Process
+
 - As a user, when I click "Start Export," the app begins rendering in the background
 - As a user, I see a **progress bar** showing percentage complete and estimated time remaining
 - As a user, I can see **current operation** (e.g., "Processing clip 2 of 5...")
@@ -37,6 +39,7 @@ This phase transforms ClipForge from a preview tool into a functional video edit
 - As a user, I can click "Show in Folder" to reveal the exported file
 
 ### Export Quality (Sensible Defaults)
+
 - As a user, my exported video uses **H.264 (libx264)** codec for compatibility
 - As a user, audio is encoded as **AAC** at 48kHz stereo
 - As a user, the frame rate **matches my source media** by default
@@ -45,6 +48,7 @@ This phase transforms ClipForge from a preview tool into a functional video edit
 - As a user, keyframes are placed every ~2 seconds for seekability
 
 ### Error Handling
+
 - As a user, if export fails, I see a **clear error message** explaining what went wrong
 - As a user, I can view a **log file** if I need to troubleshoot or report a bug
 - As a user, if I try to export an empty timeline, I'm warned before the process starts
@@ -56,6 +60,7 @@ This phase transforms ClipForge from a preview tool into a functional video edit
 ### Architecture Components
 
 #### Export State (extend Zustand store)
+
 ```typescript
 interface ExportSettings {
   filename: string;
@@ -68,7 +73,13 @@ interface ExportSettings {
 
 interface ExportJob {
   id: string;
-  status: 'idle' | 'preparing' | 'encoding' | 'complete' | 'error' | 'cancelled';
+  status:
+    | 'idle'
+    | 'preparing'
+    | 'encoding'
+    | 'complete'
+    | 'error'
+    | 'cancelled';
   progress: number; // 0-100
   currentStep: string; // "Processing clip 3 of 7"
   estimatedTimeRemaining: number; // seconds
@@ -81,7 +92,7 @@ interface AppState {
   // ... existing
   exportSettings: ExportSettings;
   exportJob: ExportJob | null;
-  
+
   // Actions
   openExportDialog: () => void;
   updateExportSettings: (settings: Partial<ExportSettings>) => void;
@@ -93,6 +104,7 @@ interface AppState {
 #### FFmpeg Export Pipeline
 
 **High-Level Process:**
+
 1. **Preparation:** Analyze timeline, generate FFmpeg command(s)
 2. **Encoding:** Execute FFmpeg in separate process, stream progress
 3. **Finalization:** Verify output, clean up temp files, notify user
@@ -100,6 +112,7 @@ interface AppState {
 **Approaches:**
 
 **Option A: Simple Concat (Recommended for MVP)**
+
 - For each clip on timeline, use FFmpeg to extract the trimmed segment to a temp file
 - Concatenate all temp files using FFmpeg concat demuxer
 - Single final encode to output
@@ -123,91 +136,101 @@ ffmpeg -f concat -safe 0 -i concat.txt \
 ```
 
 **Option B: Complex Filter (Single Pass)**
+
 - Build a single FFmpeg command with complex filter graph
 - More efficient but harder to debug
 
-*Recommendation:* Use **Option A** (Simple Concat) for reliability and debuggability.
+_Recommendation:_ Use **Option A** (Simple Concat) for reliability and debuggability.
 
 #### Export Command Builder
 
 ```typescript
 interface TimelineSegment {
   inputFile: string;
-  startTime: number;  // Trim start (offset into source)
-  duration: number;   // Trim duration
+  startTime: number; // Trim start (offset into source)
+  duration: number; // Trim duration
   outputFile: string; // Temp file path
 }
 
-function buildExportPlan(timeline: Timeline, clips: Clip[], media: MediaFile[]): TimelineSegment[] {
+function buildExportPlan(
+  timeline: Timeline,
+  clips: Clip[],
+  media: MediaFile[]
+): TimelineSegment[] {
   const segments: TimelineSegment[] = [];
-  
+
   // Sort clips by timeline position
   const sortedClips = [...clips]
-    .filter(c => c.trackId === 'track-1') // Main track only for MVP
+    .filter((c) => c.trackId === 'track-1') // Main track only for MVP
     .sort((a, b) => a.start - b.start);
-  
+
   for (const clip of sortedClips) {
-    const mediaFile = media.find(m => m.id === clip.mediaId);
+    const mediaFile = media.find((m) => m.id === clip.mediaId);
     if (!mediaFile) continue;
-    
+
     segments.push({
       inputFile: mediaFile.path,
       startTime: clip.offset, // Trim offset into source
       duration: clip.end - clip.start, // Clip duration on timeline
-      outputFile: path.join(tempDir, `segment-${clip.id}.mp4`)
+      outputFile: path.join(tempDir, `segment-${clip.id}.mp4`),
     });
   }
-  
+
   return segments;
 }
 
 function buildFFmpegCommands(
-  segments: TimelineSegment[], 
+  segments: TimelineSegment[],
   settings: ExportSettings,
   outputPath: string
 ): string[] {
   const commands: string[] = [];
-  
+
   // Step 1: Extract each segment
   for (const seg of segments) {
     commands.push(
       `ffmpeg -i "${seg.inputFile}" ` +
-      `-ss ${seg.startTime} -t ${seg.duration} ` +
-      `-c copy "${seg.outputFile}"`
+        `-ss ${seg.startTime} -t ${seg.duration} ` +
+        `-c copy "${seg.outputFile}"`
     );
   }
-  
+
   // Step 2: Create concat file
   const concatFilePath = path.join(tempDir, 'concat.txt');
   const concatContent = segments
-    .map(s => `file '${s.outputFile}'`)
+    .map((s) => `file '${s.outputFile}'`)
     .join('\n');
   fs.writeFileSync(concatFilePath, concatContent);
-  
+
   // Step 3: Final encode
   const resolution = getResolutionScale(settings.resolution);
-  const crf = settings.quality === 'high' ? 20 : settings.quality === 'medium' ? 23 : 26;
-  
+  const crf =
+    settings.quality === 'high' ? 20 : settings.quality === 'medium' ? 23 : 26;
+
   commands.push(
     `ffmpeg -f concat -safe 0 -i "${concatFilePath}" ` +
-    `-vf "scale=${resolution}" ` +
-    `-c:v libx264 -preset medium -crf ${crf} ` +
-    `-c:a aac -b:a 128k -ar 48000 ` +
-    `-pix_fmt yuv420p ` +
-    `-movflags +faststart ` +
-    `"${outputPath}"`
+      `-vf "scale=${resolution}" ` +
+      `-c:v libx264 -preset medium -crf ${crf} ` +
+      `-c:a aac -b:a 128k -ar 48000 ` +
+      `-pix_fmt yuv420p ` +
+      `-movflags +faststart ` +
+      `"${outputPath}"`
   );
-  
+
   return commands;
 }
 
 function getResolutionScale(resolution: string): string {
   switch (resolution) {
-    case '1080p': return '1920:1080';
-    case '720p': return '1280:720';
-    case '4k': return '3840:2160';
+    case '1080p':
+      return '1920:1080';
+    case '720p':
+      return '1280:720';
+    case '4k':
+      return '3840:2160';
     case 'source':
-    default: return '-1:-1'; // No scaling
+    default:
+      return '-1:-1'; // No scaling
   }
 }
 ```
@@ -215,25 +238,31 @@ function getResolutionScale(resolution: string): string {
 #### FFmpeg Execution & Progress
 
 **Spawn FFmpeg in separate process:**
+
 ```typescript
 import { spawn } from 'child_process';
 
-function executeFFmpeg(command: string, onProgress: (percent: number) => void): Promise<void> {
+function executeFFmpeg(
+  command: string,
+  onProgress: (percent: number) => void
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const args = command.split(' ').slice(1); // Remove 'ffmpeg'
     const ffmpeg = spawn('ffmpeg', args);
-    
+
     let duration = 0;
-    
+
     ffmpeg.stderr.on('data', (data) => {
       const output = data.toString();
-      
+
       // Parse duration (from initial output)
-      const durationMatch = output.match(/Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})/);
+      const durationMatch = output.match(
+        /Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})/
+      );
       if (durationMatch) {
         duration = parseTimecode(durationMatch[0]);
       }
-      
+
       // Parse progress (from encoding output)
       const timeMatch = output.match(/time=(\d{2}):(\d{2}):(\d{2}\.\d{2})/);
       if (timeMatch && duration > 0) {
@@ -242,7 +271,7 @@ function executeFFmpeg(command: string, onProgress: (percent: number) => void): 
         onProgress(Math.min(percent, 100));
       }
     });
-    
+
     ffmpeg.on('close', (code) => {
       if (code === 0) {
         resolve();
@@ -250,7 +279,7 @@ function executeFFmpeg(command: string, onProgress: (percent: number) => void): 
         reject(new Error(`FFmpeg exited with code ${code}`));
       }
     });
-    
+
     ffmpeg.on('error', reject);
   });
 }
@@ -267,32 +296,40 @@ function parseTimecode(str: string): number {
 
 ```typescript
 // src/main/export.ts
-ipcMain.handle('export:start', async (event, exportSettings, timeline, clips, media) => {
-  try {
-    const segments = buildExportPlan(timeline, clips, media);
-    const commands = buildFFmpegCommands(segments, exportSettings, exportSettings.outputPath);
-    
-    for (let i = 0; i < commands.length; i++) {
-      const cmd = commands[i];
-      event.sender.send('export:progress', {
-        step: `Processing ${i + 1} of ${commands.length}`,
-        percent: (i / commands.length) * 100
-      });
-      
-      await executeFFmpeg(cmd, (percent) => {
+ipcMain.handle(
+  'export:start',
+  async (event, exportSettings, timeline, clips, media) => {
+    try {
+      const segments = buildExportPlan(timeline, clips, media);
+      const commands = buildFFmpegCommands(
+        segments,
+        exportSettings,
+        exportSettings.outputPath
+      );
+
+      for (let i = 0; i < commands.length; i++) {
+        const cmd = commands[i];
         event.sender.send('export:progress', {
           step: `Processing ${i + 1} of ${commands.length}`,
-          percent: ((i + percent / 100) / commands.length) * 100
+          percent: (i / commands.length) * 100,
         });
+
+        await executeFFmpeg(cmd, (percent) => {
+          event.sender.send('export:progress', {
+            step: `Processing ${i + 1} of ${commands.length}`,
+            percent: ((i + percent / 100) / commands.length) * 100,
+          });
+        });
+      }
+
+      event.sender.send('export:complete', {
+        outputPath: exportSettings.outputPath,
       });
+    } catch (error) {
+      event.sender.send('export:error', { error: error.message });
     }
-    
-    event.sender.send('export:complete', { outputPath: exportSettings.outputPath });
-    
-  } catch (error) {
-    event.sender.send('export:error', { error: error.message });
   }
-});
+);
 
 ipcMain.handle('export:cancel', async () => {
   // Kill FFmpeg process
@@ -303,13 +340,21 @@ ipcMain.handle('export:cancel', async () => {
 ```
 
 #### Preload Bridge (extend)
+
 ```typescript
 interface IClipForgeAPI {
   // ... existing
   export: {
-    start: (settings: ExportSettings, timeline: Timeline, clips: Clip[], media: MediaFile[]) => Promise<void>;
+    start: (
+      settings: ExportSettings,
+      timeline: Timeline,
+      clips: Clip[],
+      media: MediaFile[]
+    ) => Promise<void>;
     cancel: () => Promise<void>;
-    onProgress: (callback: (data: { step: string, percent: number }) => void) => void;
+    onProgress: (
+      callback: (data: { step: string; percent: number }) => void
+    ) => void;
     onComplete: (callback: (data: { outputPath: string }) => void) => void;
     onError: (callback: (data: { error: string }) => void) => void;
   };
@@ -347,12 +392,14 @@ interface IClipForgeAPI {
 ### Validation & Error Handling
 
 **Pre-Export Validation:**
+
 - Timeline has at least one clip
 - All media files still exist on disk
 - Output path is writable
 - Sufficient disk space (estimate: timeline duration × 10 MB/min)
 
 **Error Scenarios:**
+
 - FFmpeg not found → "Export failed: FFmpeg not installed"
 - Media file missing → "Cannot export: [filename] not found. Please re-import."
 - Disk full → "Export failed: Insufficient disk space"
@@ -370,17 +417,14 @@ Store FFmpeg output in `project.clipforge/logs/export-<timestamp>.log` for debug
 
 1. **User clicks "Export" button**
    - App opens ExportDialog with pre-filled defaults
-   
 2. **User configures settings, clicks "Start Export"**
    - Validate timeline and settings
    - Send to main process: `window.clipforge.export.start(settings, timeline, clips, media)`
-   
 3. **Main process prepares export**
    - Build export plan (segments)
    - Create temp directory
    - Generate FFmpeg commands
    - Update status: "Preparing..."
-   
 4. **Main process executes FFmpeg commands**
    - For each segment:
      - Run FFmpeg extract command
@@ -389,27 +433,26 @@ Store FFmpeg output in `project.clipforge/logs/export-<timestamp>.log` for debug
    - Create concat file
    - Run final encode command
    - Parse stderr for overall progress
-   
 5. **FFmpeg completes**
    - Verify output file exists and is valid (> 0 bytes)
    - Clean up temp files
    - Send completion event: `export:complete`
-   
 6. **Renderer shows success**
    - Close progress overlay
    - Show ExportComplete notification
    - Enable "Show in Folder" button
 
 ### Progress Updates
+
 ```typescript
 // Renderer listens for progress
 window.clipforge.export.onProgress(({ step, percent }) => {
-  setExportJob(prev => ({
+  setExportJob((prev) => ({
     ...prev,
     status: 'encoding',
     currentStep: step,
     progress: percent,
-    estimatedTimeRemaining: calculateETA(percent, elapsedTime)
+    estimatedTimeRemaining: calculateETA(percent, elapsedTime),
   }));
 });
 
@@ -425,6 +468,7 @@ function calculateETA(percent: number, elapsed: number): number {
 ## UI/UX Details
 
 ### Export Dialog (Modal)
+
 ```
 ┌───────────────────────────────────────────────┐
 │  Export Video                            [X]  │
@@ -449,6 +493,7 @@ function calculateETA(percent: number, elapsed: number): number {
 ```
 
 ### Export Progress (Overlay)
+
 ```
 ┌───────────────────────────────────────────────┐
 │  Exporting Video...                           │
@@ -465,6 +510,7 @@ function calculateETA(percent: number, elapsed: number): number {
 ```
 
 ### Export Complete (Toast Notification)
+
 ```
 ┌───────────────────────────────────────────┐
 │  ✓ Export Complete!                  [X] │
@@ -476,6 +522,7 @@ function calculateETA(percent: number, elapsed: number): number {
 ```
 
 ### Visual Design (Tailwind CSS v4.0)
+
 - Modal dialogs: `fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm` (centered, backdrop blur)
 - Dialog container: `w-[500px] bg-white rounded-lg shadow-xl` (500px wide, subtle shadow)
 - Progress bar: `h-2 bg-gradient-to-r from-blue-600 to-blue-500 rounded-full` (Blue gradient, 8px height, rounded)
@@ -483,6 +530,7 @@ function calculateETA(percent: number, elapsed: number): number {
 - Notifications: `fixed top-4 right-4 transform transition-transform duration-300` (Slide in from top-right, auto-dismiss after 10s)
 
 **Custom Tailwind v4.0 Configuration:**
+
 ```css
 @theme {
   --color-export-primary: #2563eb;
@@ -499,6 +547,7 @@ function calculateETA(percent: number, elapsed: number): number {
 ## Acceptance Criteria
 
 ### Must Have
+
 - [ ] User can open export dialog from toolbar button
 - [ ] Export dialog shows filename, destination, resolution, quality options
 - [ ] User can change filename and destination folder
@@ -516,6 +565,7 @@ function calculateETA(percent: number, elapsed: number): number {
 - [ ] App remains responsive during export (doesn't freeze)
 
 ### Nice to Have
+
 - [ ] Estimated file size shown in dialog
 - [ ] Estimated time remaining updates during export
 - [ ] Export queue (export multiple videos sequentially)
@@ -529,40 +579,35 @@ function calculateETA(percent: number, elapsed: number): number {
 ## Testing Plan
 
 ### Manual Testing
+
 1. **Single Clip Export:**
    - Import one video, add to timeline, export
    - Verify output plays correctly, matches source quality
-   
 2. **Multi-Clip Export:**
    - Import 3 videos, arrange on timeline, export
    - Verify clips are in correct order, transitions are seamless
-   
 3. **Trimmed Clips:**
    - Add clip, trim both ends, export
    - Verify output only contains trimmed section
-   
 4. **Split Clips:**
    - Add clip, split in middle, delete one half, export
    - Verify output contains only remaining half
-   
 5. **Resolution Options:**
    - Export same timeline as 1080p, 720p, source
    - Verify output resolutions are correct
-   
 6. **Progress Tracking:**
    - Export long video (5+ minutes)
    - Verify progress updates smoothly, ETA is reasonable
-   
 7. **Cancel Export:**
    - Start export, click Cancel after 30%
    - Verify process stops, no output file or partial file
-   
 8. **Error Handling:**
    - Export with missing media file → verify error message
    - Export to read-only folder → verify error message
    - Export with full disk → verify error message
 
 ### Automated Testing (if time permits)
+
 ```typescript
 describe('Export', () => {
   it('should generate correct FFmpeg commands for single clip', () => {
@@ -571,7 +616,7 @@ describe('Export', () => {
     expect(commands).toContain('-c:v libx264');
     expect(commands).toContain('-c:a aac');
   });
-  
+
   it('should respect trim points', () => {
     const clip = { start: 5, end: 10, offset: 2, duration: 5 };
     const segment = buildSegmentFromClip(clip);
@@ -582,13 +627,14 @@ describe('Export', () => {
 ```
 
 ### Edge Cases
+
 - Empty timeline
 - Single frame clip
 - Very long timeline (>1 hour)
 - Mixed resolutions (1080p + 720p clips)
 - Mixed frame rates (30fps + 60fps)
-- Audio-only clips *(defer to later phase)*
-- Clips with transparency *(defer)*
+- Audio-only clips _(defer to later phase)_
+- Clips with transparency _(defer)_
 - Export to external drive (slow I/O)
 
 ---
@@ -605,11 +651,12 @@ describe('Export', () => {
 ## Dependencies
 
 ### npm Packages
+
 ```json
 {
   "dependencies": {
     "zustand": "^4.x", // State management
-    "uuid": "^9.x",    // ID generation
+    "uuid": "^9.x", // ID generation
     "electron-store": "^8.x", // Simple persistence (optional, or use fs directly)
     "@tailwindcss/vite": "^4.0.0", // Tailwind CSS v4.0 Vite plugin
     "tailwindcss": "^4.0.0" // CSS framework v4.0
@@ -688,15 +735,15 @@ describe('Export', () => {
 ## Open Questions
 
 - [ ] Should we support custom FFmpeg parameters for power users?
-  - *Recommendation:* Not in MVP; add "Advanced" section in future
+  - _Recommendation:_ Not in MVP; add "Advanced" section in future
 - [ ] Should exported files be added back to media library automatically?
-  - *Recommendation:* No for MVP; user can manually import if needed
+  - _Recommendation:_ No for MVP; user can manually import if needed
 - [ ] How do we handle gaps in timeline (time between clips)?
-  - *Recommendation:* Option 1: Insert black frames (default), Option 2: Skip gaps (trim output)
+  - _Recommendation:_ Option 1: Insert black frames (default), Option 2: Skip gaps (trim output)
 - [ ] Should we support exporting specific tracks only?
-  - *Recommendation:* Not in MVP; export all visible tracks
+  - _Recommendation:_ Not in MVP; export all visible tracks
 - [ ] Do we need export history/log?
-  - *Recommendation:* Nice-to-have; show last 10 exports in a panel
+  - _Recommendation:_ Nice-to-have; show last 10 exports in a panel
 
 ---
 
@@ -713,9 +760,9 @@ describe('Export', () => {
 ## Next Phase Preview
 
 **Phase 4: Recording** will add content creation capabilities:
+
 - Screen recording (display or window)
 - Webcam recording
 - Microphone audio recording
 - Screen + webcam PiP (picture-in-picture) recording
 - Recorded clips automatically added to media library and timeline
-
