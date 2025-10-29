@@ -53,7 +53,7 @@ const VideoPlayer = forwardRef<VideoPlayerRef, VideoPlayerProps>(({ media }, ref
       <video
         ref={videoRef}
         className="max-w-full max-h-full object-contain"
-        preload="metadata"
+        preload="auto"
       >
         Your browser does not support the video tag.
       </video>

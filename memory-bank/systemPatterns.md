@@ -39,7 +39,7 @@
 - **Canvas-Based Timeline:** Smooth rendering with many clips
 - **Proxy System:** Lightweight previews for large files
 
-## Phase 1 Implementation Patterns
+## Phase 1 & 2 Implementation Patterns
 
 ### Media Import & Preview System
 
@@ -73,30 +73,77 @@ User Action → File Validation → FFmpeg Processing → State Update → UI Re
 - **Graceful Degradation**: Continue processing other files if one fails
 - **Optional Thumbnails**: Import succeeds even if thumbnail generation fails
 
+### Timeline System
+
+#### Multi-Track Architecture
+```
+Timeline Container
+├── TimelineRuler (intelligent time markers)
+├── Track 1 (main video)
+│   └── TimelineClip (drag, trim, split)
+├── Track 2 (overlay)
+│   └── TimelineClip (drag, trim, split)
+└── Playhead (draggable, snapping)
+```
+
+#### Key Implementation Details
+
+**1. Service-Based Video Synchronization**
+- **TimelinePlayer Service**: Handles video sync and playback coordination
+- **Multi-track Support**: Separate video elements for each track
+- **Synchronized Playback**: Both tracks play simultaneously with proper timing
+- **Manual Seek Detection**: Pauses playback when user drags playhead
+
+**2. Intelligent Zoom System**
+- **Exponential Scaling**: 1% = 1px/s, 100% = 1000px/s
+- **Smart Time Markers**: Adapt intervals based on zoom level
+- **Smooth Transitions**: Gradual scaling from overview to frame-level precision
+
+**3. Advanced Clip Operations**
+- **Drag & Drop**: From media library to timeline tracks
+- **Trimming**: Visual indicators show trimmed seconds
+- **Splitting**: Creates two separate clips at playhead position
+- **Snapping**: Clips snap to playhead and other clip edges
+
+**4. State Management Architecture**
+- **Separate Stores**: `mediaStore` for media library, `timelineStore` for timeline
+- **Service Integration**: TimelinePlayer service coordinates video playback
+- **Event-Driven Updates**: Real-time synchronization between timeline and preview
+
 ## Component Architecture
 
 ### State Management Pattern
 
 ```typescript
-// Centralized state with Zustand
-interface AppState {
-  // Media management
+// Separate stores for different concerns
+interface MediaState {
+  // Media library management
   media: MediaFile[];
   selectedMediaId: string | null;
-
-  // Timeline state
-  tracks: Track[];
-  clips: Clip[];
-  timeline: TimelineState;
-
-  // UI state
-  currentPreview: MediaFile | null;
-  isRecording: boolean;
-
+  isImporting: boolean;
+  
   // Actions
   importMedia: (files: File[]) => Promise<void>;
-  addClip: (mediaId: string, trackId: string, position: number) => void;
-  // ... other actions
+  selectMedia: (id: string) => void;
+  removeMedia: (id: string) => void;
+}
+
+interface TimelineState {
+  // Timeline data
+  tracks: Track[];
+  clips: Clip[];
+  timeline: Timeline;
+  selectedClipId: string | null;
+  
+  // Actions
+  addClip: (mediaId: string, trackId: string, start: number, duration: number) => void;
+  moveClip: (clipId: string, newStart: number, newTrackId?: string) => void;
+  trimClip: (clipId: string, newStart: number, newEnd: number) => void;
+  splitClip: (clipId: string, splitTime: number) => void;
+  deleteClip: (clipId: string) => void;
+  setPlayhead: (playhead: number) => void;
+  setZoom: (zoom: number) => void;
+  toggleSnap: () => void;
 }
 ```
 
@@ -106,17 +153,21 @@ interface AppState {
 App
 ├── AppShell
 │   ├── MediaLibrary
-│   │   ├── MediaItem
+│   │   ├── MediaItem (draggable)
 │   │   └── ImportButton
 │   ├── PreviewPlayer
-│   │   ├── VideoPlayer
-│   │   └── PlaybackControls
+│   │   ├── VideoPlayer (Track 1)
+│   │   ├── VideoPlayer (Track 2)
+│   │   └── MultiTrackPlaybackControls
 │   ├── Timeline
-│   │   ├── TimelineRuler
-│   │   ├── TimelineTrack
-│   │   │   └── TimelineClip
-│   │   └── Playhead
-│   └── RecordingPanel
+│   │   ├── TimelineRuler (intelligent markers)
+│   │   ├── TimelineTrack (Track 1)
+│   │   │   └── TimelineClip (trim, split, drag)
+│   │   ├── TimelineTrack (Track 2)
+│   │   │   └── TimelineClip (trim, split, drag)
+│   │   ├── Playhead (snapping)
+│   │   └── TimelineControls (zoom, snap, split, delete)
+│   └── RecordingPanel (future)
 │       ├── SourcePicker
 │       ├── DevicePicker
 │       └── PreviewCanvas

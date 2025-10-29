@@ -33,16 +33,16 @@ const MediaLibrary: React.FC = () => {
   }, [importMedia]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0 max-h-full">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="flex-shrink-0 p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900">Media Library</h2>
         <ImportButton onImport={handleFilePicker} isLoading={isImporting} />
       </div>
 
       {/* Error Display */}
       {error && (
-        <div className="mx-4 mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
+        <div className="flex-shrink-0 mx-4 mt-2 p-3 bg-red-50 border border-red-200 rounded-md">
           <div className="flex justify-between items-start">
             <p className="text-sm text-red-600">{error}</p>
             <button
@@ -55,8 +55,8 @@ const MediaLibrary: React.FC = () => {
         </div>
       )}
 
-      {/* Media Grid */}
-      <div className="flex-1 overflow-y-auto p-4">
+      {/* Media Grid - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-4 min-h-0 max-h-full scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
         {media.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <div className="text-6xl mb-4">📁</div>
@@ -66,7 +66,7 @@ const MediaLibrary: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4">
+          <div className="grid grid-cols-1 gap-4 pb-4">
             {media.map((item) => (
               <MediaItem
                 key={item.id}
