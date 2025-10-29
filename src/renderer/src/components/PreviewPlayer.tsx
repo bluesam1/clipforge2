@@ -7,12 +7,12 @@ import { getClipsForTrackAtTime } from '../utils/timelineCalculations';
 
 // Custom PlaybackControls for multi-track preview
 const MultiTrackPlaybackControls: React.FC<{
-  media: any;
+  trackClips: { track1: any; track2: any };
   track1VideoRef: React.RefObject<VideoPlayerRef | null>;
   track2VideoRef: React.RefObject<VideoPlayerRef | null>;
   isPlaying: boolean;
   onPlayPause: () => void;
-}> = ({ media, track1VideoRef, track2VideoRef, isPlaying, onPlayPause }) => {
+}> = ({ trackClips, track1VideoRef, track2VideoRef, isPlaying, onPlayPause }) => {
   const handlePlayPause = () => {
     const track1Element = track1VideoRef.current?.getVideoElement();
     const track2Element = track2VideoRef.current?.getVideoElement();
@@ -22,9 +22,13 @@ const MultiTrackPlaybackControls: React.FC<{
       if (track1Element) track1Element.pause();
       if (track2Element) track2Element.pause();
     } else {
-      // Play both videos
-      if (track1Element) track1Element.play().catch(console.error);
-      if (track2Element) track2Element.play().catch(console.error);
+      // Play videos that have active clips
+      if (track1Element && trackClips.track1) {
+        track1Element.play().catch(console.error);
+      }
+      if (track2Element && trackClips.track2) {
+        track2Element.play().catch(console.error);
+      }
     }
     onPlayPause();
   };
@@ -64,7 +68,7 @@ const MultiTrackPlaybackControls: React.FC<{
       </div>
       
       <div className="text-sm text-gray-300">
-        {media?.name || 'No media selected'}
+        {trackClips.track1?.mediaId || trackClips.track2?.mediaId || 'No media selected'}
       </div>
     </div>
   );
@@ -187,14 +191,24 @@ const PreviewPlayer: React.FC = () => {
     const track2Element = track2VideoRef.current?.getVideoElement();
     
     const updatePlaybackState = () => {
-      // If Track 1 is active, use its state
-      if (track1Element && trackClips.track1) {
-        setIsPlaying(!track1Element.paused);
-      }
-      // Otherwise use Track 2 state
-      else if (track2Element && trackClips.track2) {
-        setIsPlaying(!track2Element.paused);
-      }
+      // Check if any track has an active clip and is playing
+      const track1Active = track1Element && trackClips.track1 && !track1Element.paused;
+      const track2Active = track2Element && trackClips.track2 && !track2Element.paused;
+      
+      // If either track is active and playing, we're playing
+      const shouldBePlaying = track1Active || track2Active;
+      
+      console.log('🎬 PLAYBACK STATE UPDATE:', {
+        track1Active: track1Active,
+        track2Active: track2Active,
+        shouldBePlaying: shouldBePlaying,
+        track1Clip: trackClips.track1?.id,
+        track2Clip: trackClips.track2?.id,
+        track1Paused: track1Element?.paused,
+        track2Paused: track2Element?.paused
+      });
+      
+      setIsPlaying(!!shouldBePlaying);
     };
 
     // Listen to both videos for state changes
@@ -221,6 +235,40 @@ const PreviewPlayer: React.FC = () => {
       }
     };
   }, [trackClips.track1, trackClips.track2]);
+  
+  // Effect to handle automatic track switching when clips end
+  useEffect(() => {
+    const track1Element = track1VideoRef.current?.getVideoElement();
+    const track2Element = track2VideoRef.current?.getVideoElement();
+    
+    // If track 1 has no active clip but track 2 does, and we're currently playing
+    if (!trackClips.track1 && trackClips.track2 && isPlaying && track2Element) {
+      console.log('🎬 AUTO-SWITCHING TO TRACK 2:', {
+        track1Clip: null,
+        track2Clip: trackClips.track2.id,
+        isPlaying
+      });
+      
+      // Ensure track 2 is playing
+      if (track2Element.paused) {
+        track2Element.play().catch(console.error);
+      }
+    }
+    
+    // If track 2 has no active clip but track 1 does, and we're currently playing
+    if (!trackClips.track2 && trackClips.track1 && isPlaying && track1Element) {
+      console.log('🎬 AUTO-SWITCHING TO TRACK 1:', {
+        track1Clip: trackClips.track1.id,
+        track2Clip: null,
+        isPlaying
+      });
+      
+      // Ensure track 1 is playing
+      if (track1Element.paused) {
+        track1Element.play().catch(console.error);
+      }
+    }
+  }, [trackClips.track1, trackClips.track2, isPlaying]);
   
   // Set video element references in TimelinePlayer service
   useEffect(() => {
@@ -606,7 +654,7 @@ const PreviewPlayer: React.FC = () => {
               {primaryMedia && (
         <div className="bg-gray-800 p-4">
                   <MultiTrackPlaybackControls 
-                    media={primaryMedia}
+                    trackClips={trackClips}
                     track1VideoRef={track1VideoRef}
                     track2VideoRef={track2VideoRef}
                     isPlaying={isPlaying}

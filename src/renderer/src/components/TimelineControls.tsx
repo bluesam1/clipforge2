@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTimelineStore } from '../stores/timelineStore';
 import { zoomPercentageToPixelsPerSecond, pixelsPerSecondToZoomPercentage } from '../utils/timelineCalculations';
+import { ExportButton } from './ExportButton';
 
 interface TimelineControlsProps {
   onFitToContent: () => void;
@@ -104,6 +105,9 @@ export const TimelineControls: React.FC<TimelineControlsProps> = ({ onFitToConte
         >
           Delete
         </button>
+
+        {/* Export Button */}
+        <ExportButton />
       </div>
     </div>
   );

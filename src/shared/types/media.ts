@@ -26,4 +26,11 @@ export interface IClipForgeAPI {
     save: (projectPath: string) => Promise<void>;
     load: (projectPath: string) => Promise<MediaFile[]>;
   };
+  export: {
+    start: (settings: any, timeline: any, clips: any[], tracks: any[], media: MediaFile[]) => Promise<void>;
+    cancel: () => Promise<void>;
+    onProgress: (callback: (data: { step: string; percent: number; estimatedTimeRemaining?: number }) => void) => void;
+    onComplete: (callback: (data: { outputPath: string; fileSize: number; duration: number }) => void) => void;
+    onError: (callback: (data: { error: string; code?: string; details?: string }) => void) => void;
+  };
 }
