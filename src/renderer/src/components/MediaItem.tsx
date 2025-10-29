@@ -37,6 +37,11 @@ const MediaItem: React.FC<MediaItemProps> = ({ media, isSelected, onSelect, onRe
     onPreview(media.id);
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData('mediaId', media.id);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
   return (
     <div
       className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 ${
@@ -44,6 +49,8 @@ const MediaItem: React.FC<MediaItemProps> = ({ media, isSelected, onSelect, onRe
           ? 'border-blue-500 bg-blue-50 shadow-md'
           : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
       }`}
+      draggable={true}
+      onDragStart={handleDragStart}
       onClick={onSelect}
       onDoubleClick={handleDoubleClick}
     >
