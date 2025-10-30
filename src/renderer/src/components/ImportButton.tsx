@@ -10,7 +10,7 @@ const ImportButton: React.FC<ImportButtonProps> = ({ onImport, isLoading = false
     <button
       onClick={onImport}
       disabled={isLoading}
-      className="w-full mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+      className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
     >
       {isLoading ? (
         <>

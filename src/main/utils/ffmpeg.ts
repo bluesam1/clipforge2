@@ -16,6 +16,26 @@ export interface MediaMetadata {
   codec: string;
 }
 
+// Fallback metadata extraction when FFprobe fails
+async function extractMetadataFallback(filePath: string): Promise<MediaMetadata> {
+  console.log('Using fallback metadata extraction for:', filePath);
+  
+  const stats = fs.statSync(filePath);
+  const fileExtension = path.extname(filePath).toLowerCase();
+  
+  // Determine if it's likely an audio file based on extension
+  const isAudioFile = ['.mp3', '.wav', '.aac', '.ogg', '.webm', '.m4a'].includes(fileExtension);
+  
+  return {
+    duration: 0, // We can't determine duration without FFprobe
+    width: isAudioFile ? 0 : 1920, // Default video width if not audio
+    height: isAudioFile ? 0 : 1080, // Default video height if not audio
+    fps: isAudioFile ? 0 : 30, // Default FPS for video, 0 for audio
+    size: stats.size,
+    codec: isAudioFile ? 'audio' : 'video'
+  };
+}
+
 export async function extractMetadata(filePath: string): Promise<MediaMetadata> {
   try {
     if (!ffprobe.path) {
@@ -32,38 +52,71 @@ export async function extractMetadata(filePath: string): Promise<MediaMetadata> 
       setTimeout(() => reject(new Error('Metadata extraction timeout')), 15000); // 15 second timeout
     });
     
-    const execPromise = execAsync(command);
-    const { stdout } = await Promise.race([execPromise, timeoutPromise]);
-    console.log('FFprobe output:', stdout);
-    
-    const data = JSON.parse(stdout);
-    
-    // Find video stream
-    const videoStream = data.streams.find((stream: any) => stream.codec_type === 'video');
-    if (!videoStream) {
-      throw new Error('No video stream found');
+    let stdout: string;
+    try {
+      const result = await Promise.race([execAsync(command), timeoutPromise]);
+      stdout = result.stdout;
+      console.log('FFprobe output:', stdout);
+    } catch (execError) {
+      console.log('FFprobe command failed, using fallback metadata extraction:', execError);
+      return await extractMetadataFallback(filePath);
     }
+    
+    // Check if FFprobe returned empty or invalid data
+    if (!stdout || stdout.trim() === '{}' || stdout.trim() === '{\r\n\r\n}') {
+      console.log('FFprobe returned empty data, using fallback metadata extraction');
+      return await extractMetadataFallback(filePath);
+    }
+    
+    let data;
+    try {
+      data = JSON.parse(stdout);
+    } catch (parseError) {
+      console.log('Failed to parse FFprobe output as JSON, using fallback');
+      return await extractMetadataFallback(filePath);
+    }
+    
+    // Check if we have valid streams data
+    if (!data.streams || !Array.isArray(data.streams) || data.streams.length === 0) {
+      console.log('No streams found in FFprobe output, using fallback');
+      return await extractMetadataFallback(filePath);
+    }
+    
+    // Find video or audio stream
+    const videoStream = data.streams.find((stream: any) => stream.codec_type === 'video');
+    const audioStream = data.streams.find((stream: any) => stream.codec_type === 'audio');
+    
+    if (!videoStream && !audioStream) {
+      console.log('No video or audio stream found in FFprobe output, using fallback');
+      return await extractMetadataFallback(filePath);
+    }
+    
+    // Use video stream if available, otherwise use audio stream
+    const primaryStream = videoStream || audioStream;
     
     // Get file size
     const stats = fs.statSync(filePath);
     
-    // Calculate FPS properly
+    // Calculate FPS properly (only for video streams)
     const fps = (() => {
-      const rate = videoStream.r_frame_rate;
-      if (typeof rate === 'string' && rate.includes('/')) {
-        const [numerator, denominator] = rate.split('/').map(Number);
-        return denominator ? numerator / denominator : 30;
+      if (videoStream && videoStream.r_frame_rate) {
+        const rate = videoStream.r_frame_rate;
+        if (typeof rate === 'string' && rate.includes('/')) {
+          const [numerator, denominator] = rate.split('/').map(Number);
+          return denominator ? numerator / denominator : 30;
+        }
+        return parseFloat(rate) || 30;
       }
-      return parseFloat(rate) || 30;
+      return 0; // No FPS for audio-only files
     })();
     
     return {
       duration: parseFloat(data.format.duration) || 0,
-      width: videoStream.width || 0,
-      height: videoStream.height || 0,
+      width: videoStream?.width || 0,
+      height: videoStream?.height || 0,
       fps,
       size: stats.size,
-      codec: videoStream.codec_name || 'unknown',
+      codec: primaryStream.codec_name || 'unknown',
     };
   } catch (error) {
     console.error('Error extracting metadata:', error);

@@ -66,7 +66,7 @@ export const Playhead: React.FC = () => {
         className="absolute top-0 bottom-0 w-0.5 bg-red-500 pointer-events-none"
         style={{ 
           left: `${finalLeftPosition}px`,
-          zIndex: 9999,
+          zIndex: 40, // Below dialog z-index (50)
           backgroundColor: 'red',
           minWidth: '2px'
         }}
@@ -77,7 +77,7 @@ export const Playhead: React.FC = () => {
         className="absolute top-0 bottom-0 w-1 bg-red-600 pointer-events-none"
         style={{ 
           left: `${finalLeftPosition - 1}px`,
-          zIndex: 9998,
+          zIndex: 39, // Below dialog z-index (50)
           backgroundColor: 'darkred',
           minWidth: '2px'
         }}
@@ -88,7 +88,7 @@ export const Playhead: React.FC = () => {
         className="absolute -top-2 w-4 h-4 bg-red-500 rounded-full cursor-grab active:cursor-grabbing pointer-events-auto"
         style={{
           left: `${finalLeftPosition - 8}px`, // Center the 16px handle (8px offset)
-          zIndex: 10000,
+          zIndex: 41, // Below dialog z-index (50)
           backgroundColor: 'red',
           border: '1px solid white'
         }}
@@ -98,7 +98,7 @@ export const Playhead: React.FC = () => {
       {/* Layer 4: Emergency visibility indicator */}
       <div
         className="fixed top-2 right-2 w-3 h-3 bg-red-500 rounded-full"
-        style={{ zIndex: 10001 }}
+        style={{ zIndex: 42 }} // Below dialog z-index (50)
         title={`Playhead at ${finalLeftPosition}px`}
       />
     </>

@@ -21,6 +21,9 @@ export interface IClipForgeAPI {
   };
   file: {
     openDialog: (options: Electron.OpenDialogOptions) => Promise<string[] | null>;
+    saveDialog: (options: Electron.SaveDialogOptions) => Promise<string | null>;
+    getVideosPath: () => Promise<string>;
+    showItemInFolder: (path: string) => Promise<void>;
   };
   project: {
     save: (projectPath: string) => Promise<void>;
@@ -32,5 +35,12 @@ export interface IClipForgeAPI {
     onProgress: (callback: (data: { step: string; percent: number; estimatedTimeRemaining?: number }) => void) => void;
     onComplete: (callback: (data: { outputPath: string; fileSize: number; duration: number }) => void) => void;
     onError: (callback: (data: { error: string; code?: string; details?: string }) => void) => void;
+  };
+  recording: {
+    getSources: () => Promise<any[]>;
+    saveFile: (data: { buffer: string; filename: string }) => Promise<string>;
+    convertToMP4: (data: { inputPath: string; outputPath: string; quality?: string }) => Promise<string>;
+    getProjectPath: () => Promise<string>;
+    requestPermissions: () => Promise<boolean>;
   };
 }

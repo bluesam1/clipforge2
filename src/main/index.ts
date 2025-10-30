@@ -7,6 +7,7 @@ import icon from '../../resources/icon.png?asset';
 import { extractMetadata, generateThumbnail, validateVideoFile, generateFileHash } from './utils/ffmpeg';
 import { MediaFile } from '../shared/types/media';
 import { setupExportHandlers } from './export';
+import { setupRecordingIPC } from './recording';
 
 // Let's try a simpler approach - just allow file:// URLs
 
@@ -23,11 +24,30 @@ function createWindow(): void {
       sandbox: false,
       webSecurity: false, // Allow local file access
       allowRunningInsecureContent: true,
+      nodeIntegration: false,
+      contextIsolation: true,
     },
   });
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  // Grant permissions for screen capture
+  mainWindow.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
+    if (permission === 'media') {
+      callback(true); // Grant media permissions
+    } else {
+      callback(false);
+    }
+  });
+
+  // Set media permissions
+  mainWindow.webContents.session.setPermissionCheckHandler((_webContents, permission, _requestingOrigin, _details) => {
+    if (permission === 'media') {
+      return true; // Allow media access
+    }
+    return false;
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -81,6 +101,9 @@ app.whenReady().then(() => {
 
   // Setup export handlers
   setupExportHandlers();
+
+  // Setup recording handlers
+  setupRecordingIPC();
 
   // Media import handler
   ipcMain.handle('media:import', async (_event, filePaths: string[]): Promise<MediaFile[]> => {

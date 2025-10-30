@@ -133,7 +133,7 @@ export const useExportStore = create<ExportState>((set, get) => ({
       );
     } catch (error) {
       console.error('Export failed:', error);
-      failExport({
+      get().failExport({
         error: error instanceof Error ? error.message : 'Export failed',
         details: error instanceof Error ? error.stack : undefined
       });

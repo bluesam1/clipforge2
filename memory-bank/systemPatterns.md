@@ -39,7 +39,7 @@
 - **Canvas-Based Timeline:** Smooth rendering with many clips
 - **Proxy System:** Lightweight previews for large files
 
-## Phase 1 & 2 Implementation Patterns
+## Phase 1-4 Implementation Patterns
 
 ### Media Import & Preview System
 
@@ -346,6 +346,165 @@ try {
 - **Local storage:** No sensitive data in localStorage
 - **Temporary files:** Clean up after use
 - **Logs:** No sensitive information in logs
+
+## Phase 4: Recording System Patterns
+
+### Recording Architecture
+
+#### Multi-Source Recording Pipeline
+```
+User Selection → Device Access → Stream Creation → Recording Service → File Processing
+      ↓              ↓              ↓                ↓                    ↓
+  Device Picker → getUserMedia → MediaStream → MediaRecorder → WebM → MP4 → Import
+```
+
+#### PiP Compositing System
+```
+Screen Stream + Webcam Stream → Canvas Compositing → Composite Stream → MediaRecorder
+         ↓                           ↓                      ↓                ↓
+    Electron API → Real-time Drawing → Canvas Stream → WebM Recording
+```
+
+### Recording Service Pattern
+
+#### Service Class Structure
+```typescript
+class RecordingService {
+  private mediaRecorder: MediaRecorder | null = null;
+  private mediaStream: MediaStream | null = null;
+  private stopPiPCompositing: (() => void) | null = null;
+  
+  async startRecording(settings: RecordingSettings): Promise<void>
+  async stopRecording(settings?: RecordingSettings): Promise<RecordingResult>
+  private async getMediaStream(settings: RecordingSettings): Promise<MediaStream>
+  private async getScreenCaptureStream(settings: RecordingSettings): Promise<MediaStream>
+  private async createPiPCompositeStream(screenStream: MediaStream, settings: RecordingSettings): Promise<MediaStream>
+  private cleanup(): void
+}
+```
+
+#### Key Design Patterns
+
+1. **Resource Management Pattern**
+   - Cleanup functions for MediaStream, MediaRecorder, and animation loops
+   - Proper disposal of resources to prevent memory leaks
+   - Immediate cleanup on recording stop
+
+2. **Fallback Pattern**
+   - Primary: `getDisplayMedia` for screen capture
+   - Fallback: Electron `desktopCapturer` API
+   - Graceful degradation for unsupported features
+
+3. **Staging Workflow Pattern**
+   - Record to WebM format
+   - Stage recordings for processing
+   - Convert to MP4 on panel close
+   - Auto-import to media library
+
+4. **Animation Cleanup Pattern**
+   - Store animation ID for tracking
+   - Provide cleanup function on service instance
+   - Stop animation immediately on recording stop
+   - Multiple cleanup points for safety
+
+### Device Management Patterns
+
+#### Device Selection UI
+```typescript
+interface DevicePickerProps {
+  devices: MediaDeviceInfo[];
+  selectedDeviceId?: string;
+  onDeviceSelect: (deviceId: string) => void;
+  deviceType: 'camera' | 'microphone' | 'screen';
+}
+```
+
+#### Device Access Pattern
+1. **Permission Request** → User grants access
+2. **Device Enumeration** → Get available devices
+3. **Device Selection** → User chooses device
+4. **Stream Creation** → Create MediaStream with device constraints
+5. **Preview Display** → Show live preview in UI
+
+### Error Handling Patterns
+
+#### Recording Error Recovery
+```typescript
+try {
+  // Attempt primary recording method
+  stream = await getDisplayMedia(constraints);
+} catch (primaryError) {
+  // Fallback to Electron desktopCapturer
+  try {
+    stream = await getUserMedia(electronConstraints);
+  } catch (fallbackError) {
+    // Graceful degradation
+    throw new Error('Recording not supported');
+  }
+}
+```
+
+#### Resource Cleanup Pattern
+```typescript
+private cleanup(): void {
+  // Stop PiP animation
+  if (this.stopPiPCompositing) {
+    this.stopPiPCompositing();
+    this.stopPiPCompositing = null;
+  }
+  
+  // Stop media tracks
+  if (this.mediaStream) {
+    this.mediaStream.getTracks().forEach(track => track.stop());
+    this.mediaStream = null;
+  }
+  
+  // Clear MediaRecorder
+  this.mediaRecorder = null;
+}
+```
+
+### State Management Patterns
+
+#### Recording Store Structure
+```typescript
+interface RecordingStore {
+  // Settings
+  settings: RecordingSettings;
+  
+  // State
+  isRecording: boolean;
+  isPaused: boolean;
+  recordingState: RecordingState;
+  
+  // Staging
+  stagedRecordings: StagedRecording[];
+  
+  // Actions
+  startRecording: () => Promise<void>;
+  stopRecording: () => Promise<void>;
+  addStagedRecording: (recording: StagedRecording) => void;
+  processStagedRecordings: () => Promise<void>;
+}
+```
+
+#### Settings Persistence Pattern
+```typescript
+// Store settings in localStorage with migration
+persist(
+  (set, get) => ({ /* store implementation */ }),
+  {
+    name: 'recording-store',
+    partialize: (state) => ({ settings: state.settings }),
+    onRehydrateStorage: () => (state) => {
+      // Migration logic for new settings
+      if (state?.settings?.outputFormat === undefined) {
+        state.settings.outputFormat = 'mp4';
+      }
+    }
+  }
+)
+```
 
 ## Extension Patterns
 

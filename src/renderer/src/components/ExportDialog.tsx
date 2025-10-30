@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useExportStore } from '../stores/exportStore';
 import { useTimelineStore } from '../stores/timelineStore';
-import { useMediaStore } from '../stores/mediaStore';
-import { ExportSettings, RESOLUTION_SCALE_MAP, QUALITY_CRF_MAP } from '../types/export';
+import { ExportSettings, QUALITY_CRF_MAP } from '../types/export';
 
 export const ExportDialog: React.FC = () => {
   const { 
@@ -179,9 +178,12 @@ export const ExportDialog: React.FC = () => {
               />
               <button
                 onClick={handleBrowseFile}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 transition-colors flex items-center space-x-2"
               >
-                Browse
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                </svg>
+                <span>Browse</span>
               </button>
             </div>
             <p className="mt-1 text-xs text-gray-500">
@@ -277,7 +279,7 @@ export const ExportDialog: React.FC = () => {
               className={`px-6 py-2 rounded-md transition-colors ${
                 clips.length === 0 || !localSettings.filename || !localSettings.outputPath
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-orange-600 text-white hover:bg-orange-700'
+                  : 'bg-slate-600 text-white hover:bg-slate-700'
               }`}
             >
               Retry Export
@@ -289,7 +291,7 @@ export const ExportDialog: React.FC = () => {
               className={`px-6 py-2 rounded-md transition-colors ${
                 clips.length === 0 || !localSettings.filename || !localSettings.outputPath
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-slate-600 text-white hover:bg-slate-700'
               }`}
             >
               Start Export

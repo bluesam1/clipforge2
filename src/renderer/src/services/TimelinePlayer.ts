@@ -191,6 +191,9 @@ export class TimelinePlayer {
    * Set up video event listeners
    */
   setupVideoListeners(activeClip: Clip | null) {
+    // Clean up existing listeners first
+    this.cleanupVideoListeners();
+
     if (!activeClip) {
       console.log('🎬 NO ACTIVE CLIP for timeupdate listener');
       return;
@@ -209,10 +212,25 @@ export class TimelinePlayer {
     console.log('🎬 ADDING timeupdate listener for track', activeClip.trackId);
     videoElement.addEventListener('timeupdate', handleTimeUpdate);
     
-    return () => {
+    // Store the cleanup function
+    this.currentCleanup = () => {
       console.log('🎬 REMOVING timeupdate listener for track', activeClip.trackId);
       videoElement.removeEventListener('timeupdate', handleTimeUpdate);
     };
+    
+    return this.currentCleanup;
+  }
+
+  private currentCleanup?: () => void;
+
+  /**
+   * Clean up video event listeners
+   */
+  private cleanupVideoListeners() {
+    if (this.currentCleanup) {
+      this.currentCleanup();
+      this.currentCleanup = undefined;
+    }
   }
 
   /**
@@ -226,6 +244,7 @@ export class TimelinePlayer {
    * Clean up resources
    */
   cleanup() {
+    this.cleanupVideoListeners();
     this.videoElements.clear();
     this.isManualSeek = false;
     this.lastUpdateTime = 0;

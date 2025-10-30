@@ -1,7 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
 import { IClipForgeAPI } from '../shared/types/media';
-import { ExportSettings } from '../shared/types/export';
 
 // Custom APIs for renderer
 const api: IClipForgeAPI = {
@@ -21,7 +20,7 @@ const api: IClipForgeAPI = {
     load: (projectPath: string) => ipcRenderer.invoke('project:load', projectPath),
   },
   export: {
-    start: (settings: ExportSettings, timeline: any, clips: any[], tracks: any[], media: any[]) => 
+    start: (settings: any, timeline: any, clips: any[], tracks: any[], media: any[]) => 
       ipcRenderer.invoke('export:start', settings, timeline, clips, tracks, media),
     cancel: () => ipcRenderer.invoke('export:cancel'),
     onProgress: (callback: (data: { step: string; percent: number; estimatedTimeRemaining?: number }) => void) => {
@@ -33,6 +32,23 @@ const api: IClipForgeAPI = {
     onError: (callback: (data: { error: string; code?: string; details?: string }) => void) => {
       ipcRenderer.on('export:error', (_, data) => callback(data));
     },
+  },
+  recording: {
+    getSources: async () => {
+      console.log('Preload: Getting sources...');
+      try {
+        const sources = await ipcRenderer.invoke('recording:getSources');
+        console.log('Preload: Sources received:', sources);
+        return sources;
+      } catch (error) {
+        console.error('Preload: Error getting sources:', error);
+        throw error;
+      }
+    },
+    saveFile: (data: { buffer: string; filename: string }) => ipcRenderer.invoke('recording:saveFile', data) as Promise<string>,
+      convertToMP4: (data: { inputPath: string; outputPath: string; quality?: string }) => ipcRenderer.invoke('recording:convertToMP4', data) as Promise<string>,
+    getProjectPath: () => ipcRenderer.invoke('recording:getProjectPath') as Promise<string>,
+    requestPermissions: () => ipcRenderer.invoke('recording:requestPermissions') as Promise<boolean>,
   },
 };
 

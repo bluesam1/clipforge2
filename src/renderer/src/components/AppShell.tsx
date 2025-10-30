@@ -6,10 +6,13 @@ import ToastContainer from './Toast';
 import { ExportDialog } from './ExportDialog';
 import { ExportProgress } from './ExportProgress';
 import { ExportComplete } from './ExportComplete';
+import { RecordingPanel } from './RecordingPanel';
 import { useExportStore } from '../stores/exportStore';
+import { useRecordingStore } from '../stores/recordingStore';
 
 const AppShell: React.FC = () => {
   const { openExportDialog } = useExportStore();
+  const { setRecordingPanelOpen } = useRecordingStore();
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -19,23 +22,29 @@ const AppShell: React.FC = () => {
         event.preventDefault();
         openExportDialog();
       }
+      
+      // Ctrl/Cmd + R to open recording panel
+      if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
+        event.preventDefault();
+        setRecordingPanelOpen(true);
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [openExportDialog]);
+  }, [openExportDialog, setRecordingPanelOpen]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-100 overflow-hidden">
       {/* Top Panel - Preview Player */}
-      <div className="flex-1 bg-gray-900 flex min-h-0">
+      <div className="flex-1 bg-gray-500 flex min-h-0">
         {/* Left Panel - Media Library */}
         <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full min-h-0">
           <MediaLibrary />
         </div>
 
         {/* Center Panel - Preview Player */}
-        <div className="flex-1 bg-gray-900 flex flex-col min-h-0">
+        <div className="flex-1 bg-gray-500 flex flex-col min-h-0">
           <PreviewPlayer />
         </div>
 
@@ -67,6 +76,9 @@ const AppShell: React.FC = () => {
       
       {/* Export Complete */}
       <ExportComplete />
+      
+      {/* Recording Panel */}
+      <RecordingPanel />
     </div>
   );
 };

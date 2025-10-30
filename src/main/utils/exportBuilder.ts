@@ -8,15 +8,15 @@ import {
   TimelineSegment, 
   Clip, 
   Timeline, 
-  Track, 
-  MediaFile 
+  Track
 } from '../../shared/types/export';
+import { MediaFile } from '../../shared/types/media';
 
 // Export plan builder functions
 export function buildExportPlan(
-  timeline: Timeline,
+  _timeline: Timeline,
   clips: Clip[],
-  tracks: Track[],
+  _tracks: Track[],
   media: MediaFile[],
   tempDir: string // Pass the temp directory to ensure all segments are in the same place
 ): TimelineSegment[] {
@@ -122,7 +122,6 @@ export function buildFFmpegCommands(
   }
 
   // Step 2: Create multi-track composition command
-  const resolution = getResolutionScale(settings.resolution);
   const crf = getQualityCRF(settings.quality);
   const fps = settings.fps === 'match-source' ? '' : `-r ${settings.fps}`;
 
@@ -153,7 +152,7 @@ function buildInputArguments(segments: TimelineSegment[]): string {
     .join(' ');
 }
 
-function buildMultiTrackFilter(segments: TimelineSegment[], clips: Clip[], tempDir: string, resolution: ExportSettings['resolution']): string {
+function buildMultiTrackFilter(segments: TimelineSegment[], clips: Clip[], _tempDir: string, resolution: ExportSettings['resolution']): string {
   // This is a simplified version - in a real implementation, you'd need to:
   // 1. Calculate the total timeline duration
   // 2. Create proper timing for each clip
@@ -169,7 +168,7 @@ function buildMultiTrackFilter(segments: TimelineSegment[], clips: Clip[], tempD
   
   // For now, create a simple filter that processes clips in timeline order
   // This is a placeholder - the real implementation would be much more complex
-  const filters = [];
+  const filters: string[] = [];
   
   // Add video composition filters
   segments.forEach((seg, index) => {
@@ -263,7 +262,7 @@ export function getFFmpegPath(): string {
   // Test if FFmpeg is accessible
   try {
     const { execSync } = require('child_process');
-    const testResult = execSync(`"${ffmpeg.path}" -version`, { timeout: 5000 });
+    execSync(`"${ffmpeg.path}" -version`, { timeout: 5000 });
     console.log('FFmpeg version check passed');
   } catch (error) {
     console.error('FFmpeg version check failed:', error);

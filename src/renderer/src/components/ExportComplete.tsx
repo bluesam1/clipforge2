@@ -28,17 +28,6 @@ export const ExportComplete: React.FC = () => {
     resetExport();
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) {
-      return `${bytes} B`;
-    } else if (bytes < 1024 * 1024) {
-      return `${(bytes / 1024).toFixed(1)} KB`;
-    } else if (bytes < 1024 * 1024 * 1024) {
-      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    } else {
-      return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-    }
-  };
 
   return (
     <div className="fixed top-4 right-4 bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-80 z-50 transform transition-transform duration-300">

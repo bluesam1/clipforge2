@@ -467,6 +467,12 @@ const PreviewPlayer: React.FC = () => {
     if (!timelinePlayerRef.current) return;
 
     const activeClip = trackClips.track1 || trackClips.track2;
+    console.log('🎬 SETTING UP VIDEO LISTENERS:', {
+      activeClip: activeClip ? { id: activeClip.id, trackId: activeClip.trackId } : null,
+      track1Element: !!track1VideoRef.current?.getVideoElement(),
+      track2Element: !!track2VideoRef.current?.getVideoElement()
+    });
+    
     const cleanup = timelinePlayerRef.current.setupVideoListeners(activeClip);
     
     // Override the video time update to track when video updates happen
@@ -621,7 +627,7 @@ const PreviewPlayer: React.FC = () => {
   return (
     <div className="flex flex-col h-full">
       {/* Video Player Area - Multi-Track Preview */}
-      <div className="flex-1 flex items-center justify-center bg-black relative">
+      <div className="flex-1 flex items-center justify-center bg-gray-500 relative">
         {/* Track 2 Video (Background/Overlay) */}
         {trackMedia.track2 && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -642,10 +648,10 @@ const PreviewPlayer: React.FC = () => {
           </div>
         )}
         
-                {/* Blank black screen when no clips are active */}
+                {/* Blank screen when no clips are active */}
                 {!trackMedia.track1 && !trackMedia.track2 && (
-                  <div className="w-full h-full bg-black flex items-center justify-center">
-                    {/* Empty black screen - no content */}
+                  <div className="w-full h-full bg-gray-500 flex items-center justify-center">
+                    {/* Empty screen - no content */}
           </div>
         )}
       </div>

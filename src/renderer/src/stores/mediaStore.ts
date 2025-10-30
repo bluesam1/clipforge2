@@ -100,12 +100,17 @@ export const useMediaStore = create<MediaState>((set, get) => ({
       console.log('First imported file path:', importedFiles[0]?.path);
       console.log('First imported file thumbnail:', importedFiles[0]?.thumbnailPath);
       
+      console.log('MediaStore: Adding imported files to media array:', importedFiles);
+      console.log('MediaStore: Current media count before adding:', get().media.length);
+      
       set(state => ({
         media: [...state.media, ...importedFiles],
         isImporting: false,
         // Auto-select the first imported file if none is currently selected
         selectedMediaId: state.selectedMediaId || (importedFiles.length > 0 ? importedFiles[0].id : state.selectedMediaId),
       }));
+      
+      console.log('MediaStore: New media count after adding:', get().media.length);
       
       if (importedFiles.length > 0) {
         toast.success(`Successfully imported ${importedFiles.length} file(s)`);

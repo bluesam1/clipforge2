@@ -1,11 +1,17 @@
 import React, { useCallback } from 'react';
 import { useMediaStore } from '../stores/mediaStore';
+import { useRecordingStore } from '../stores/recordingStore';
 import MediaItem from './MediaItem';
 import ImportButton from './ImportButton';
 import DropZone from './DropZone';
 
 const MediaLibrary: React.FC = () => {
   const { media, selectedMediaId, isImporting, error, importMedia, selectMedia, removeMedia, loadPreview, clearError } = useMediaStore();
+  const { setRecordingPanelOpen } = useRecordingStore();
+
+  // Debug: Log media array
+  console.log('MediaLibrary: Current media array:', media);
+  console.log('MediaLibrary: Media count:', media.length);
 
   const handleFileSelect = useCallback(async (files: File[]) => {
     await importMedia(files);
@@ -37,7 +43,18 @@ const MediaLibrary: React.FC = () => {
       {/* Header */}
       <div className="flex-shrink-0 p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900">Media Library</h2>
-        <ImportButton onImport={handleFilePicker} isLoading={isImporting} />
+        <div className="flex space-x-2 mt-2">
+          <ImportButton onImport={handleFilePicker} isLoading={isImporting} />
+          <button
+            onClick={() => setRecordingPanelOpen(true)}
+            className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-2"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+            </svg>
+            <span>Record</span>
+          </button>
+        </div>
       </div>
 
       {/* Error Display */}

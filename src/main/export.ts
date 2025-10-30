@@ -6,11 +6,11 @@ import {
   buildFFmpegCommands, 
   cleanupTempFiles, 
   validateExportSettings,
-  estimateFileSize,
   getTempDir
 } from './utils/exportBuilder';
 import { executeFFmpegCommands } from './utils/ffmpeg';
-import { ExportSettings, Timeline, Clip, Track, MediaFile } from '../shared/types/export';
+import { ExportSettings, Timeline, Clip, Track } from '../shared/types/export';
+import { MediaFile } from '../shared/types/media';
 
 // Store current export process for cancellation
 let currentExportProcess: any = null;
